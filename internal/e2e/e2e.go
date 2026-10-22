@@ -213,6 +213,84 @@ type WrappedPrivateKey struct {
 	Salt        []byte `json:"salt"`
 	Nonce       []byte `json:"nonce"`
 	Ciphertext  []byte `json:"ciphertext"`
+	// Recovery, when set, is a second wrap of the same private key under the
+	// user's recovery key, so a forgotten account password can be replaced.
+	Recovery *RecoveryWrap `json:"recovery,omitempty"`
+}
+
+// RecoveryWrap is a private key encrypted under a key derived (HKDF) from a
+// random recovery key that only the user holds.
+type RecoveryWrap struct {
+	Salt       []byte `json:"salt"`
+	Nonce      []byte `json:"nonce"`
+	Ciphertext []byte `json:"ciphertext"`
+}
+
+// AccountRecoveryPrefix marks account recovery keys (VENA-…), distinct from
+// local vault recovery keys (VENR-…).
+const AccountRecoveryPrefix = "VENA"
+
+const accountRecoveryInfo = "ven/account-recovery/v1"
+
+func accountRecoveryAAD(userID string, salt, pub []byte) []byte {
+	return vault.NewAAD("ven/account-recovery").U32(FormatVersion).Str(userID).Str(string(salt)).Str(string(pub))
+}
+
+// AddRecovery wraps priv under a new recovery key, replacing any previous
+// recovery wrap, and returns the printable recovery key to show once.
+func AddRecovery(w *WrappedPrivateKey, priv *ecdh.PrivateKey, userID string) (string, error) {
+	secret, printable, err := vault.NewRecoveryKey(AccountRecoveryPrefix)
+	if err != nil {
+		return "", err
+	}
+	defer vault.Wipe(secret)
+	salt, err := vault.RandomBytes(vault.SaltSize)
+	if err != nil {
+		return "", err
+	}
+	k, err := vault.RecoveryWrappingKey(secret, salt, accountRecoveryInfo)
+	if err != nil {
+		return "", err
+	}
+	defer vault.Wipe(k)
+	raw := priv.Bytes()
+	defer vault.Wipe(raw)
+	nonce, ct, err := vault.Encrypt(k, raw, accountRecoveryAAD(userID, salt, priv.PublicKey().Bytes()))
+	if err != nil {
+		return "", err
+	}
+	w.Recovery = &RecoveryWrap{Salt: salt, Nonce: nonce, Ciphertext: ct}
+	return printable, nil
+}
+
+// ErrIncorrectRecoveryKey means the recovery key did not open the account key.
+var ErrIncorrectRecoveryKey = errors.New("incorrect recovery key")
+
+// RecoverPrivateKey opens the recovery wrap with a printable recovery key.
+func RecoverPrivateKey(w *WrappedPrivateKey, recoveryKey, userID string, pub []byte) (*ecdh.PrivateKey, error) {
+	if w == nil || w.Recovery == nil {
+		return nil, errors.New("this account has no recovery key; it cannot be recovered (use ven login --reset-key)")
+	}
+	secret, err := vault.ParseRecoveryKey(AccountRecoveryPrefix, recoveryKey)
+	if err != nil {
+		return nil, err
+	}
+	defer vault.Wipe(secret)
+	k, err := vault.RecoveryWrappingKey(secret, w.Recovery.Salt, accountRecoveryInfo)
+	if err != nil {
+		return nil, err
+	}
+	defer vault.Wipe(k)
+	raw, err := vault.Decrypt(k, w.Recovery.Nonce, w.Recovery.Ciphertext, accountRecoveryAAD(userID, w.Recovery.Salt, pub))
+	if err != nil {
+		return nil, ErrIncorrectRecoveryKey
+	}
+	defer vault.Wipe(raw)
+	priv, err := ecdh.X25519().NewPrivateKey(raw)
+	if err != nil || subtle.ConstantTimeCompare(priv.PublicKey().Bytes(), pub) != 1 {
+		return nil, ErrDecrypt
+	}
+	return priv, nil
 }
 
 // Params returns the Argon2id parameters the key was wrapped with.

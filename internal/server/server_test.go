@@ -130,6 +130,9 @@ func (c *client) unlocked() {
 	if w.Code != 200 {
 		c.t.Fatalf("init: %d %s", w.Code, w.Body)
 	}
+	if rk, _ := decodeBody(c.t, w)["recoveryKey"].(string); !strings.HasPrefix(rk, "VENR-") {
+		c.t.Fatalf("init response lacks a recovery key: %s", w.Body)
+	}
 }
 
 func TestHostValidation(t *testing.T) {

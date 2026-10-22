@@ -14,7 +14,7 @@ encryption code.
 - Single user, single local vault, no accounts, no network services beyond `127.0.0.1`.
 - Every value is encrypted with AES-256-GCM under a random vault key; the vault key is
   wrapped with a key derived from your master password (Argon2id).
-- There is **no password recovery** in V1.
+- A one-time **recovery key** (shown at `ven init`) can reset a forgotten master password; nobody else can.
 
 ## Contents
 
@@ -126,6 +126,8 @@ Run `ven <command> --help` for full help. Global flags:
 | `ven set <KEY> -p <p> -e <e> [--type secret\|text] [--description d] [--value-stdin]` | Create or update; the value is read with hidden input. |
 | `ven unset <KEY> -p <p> -e <e>` | Delete a variable. |
 | `ven password change` | Change the master password. |
+| `ven password reset` | Set a new master password with your recovery key. |
+| `ven password recovery-key [--yes]` | Create a new recovery key (the old one stops working). |
 | `ven ui [--port 7420] [--no-browser]` | Start the dashboard on 127.0.0.1. |
 | `ven version` | Print the version. |
 
@@ -224,6 +226,7 @@ Production-like environments are **protected**: the code alone never unlocks the
 | Command | Description |
 | --- | --- |
 | `ven login [--server URL]` / `logout` / `whoami` | Log in with GitHub, revoke the session, show your key fingerprint. |
+| `ven account recover` / `account recovery-key` | Reset a forgotten account password with your account recovery key, or make a new one. |
 | `ven remote list\|create\|publish\|envs create\|rotate\|delete` | Manage hosted projects; `publish` uploads a local project. |
 | `ven link <project> -e <env>` | Remember the project/environment for this directory. |
 | `ven pull [--out f] [--stdout]` / `push [--from f] [--merge]` | Download/upload an environment. |

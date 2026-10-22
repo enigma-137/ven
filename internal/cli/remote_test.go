@@ -447,3 +447,43 @@ func TestHostedAccountKeyReset(t *testing.T) {
 		t.Fatalf("audit: %s", r.stdout)
 	}
 }
+
+func TestHostedAccountRecovery(t *testing.T) {
+	re := newRemoteEnv(t)
+	alice := re.person("alice")
+	re.gh.next = "alice"
+	r := alice.withPW("login", "--server", re.url, "--no-browser")
+	rk := strings.TrimSpace(r.stdout)
+	if !strings.HasPrefix(rk, "VENA-") {
+		t.Fatalf("login should print an account recovery key: %q", r.stdout)
+	}
+	alice.must("", "remote", "create", "api", "--envs", "development")
+	src := filepath.Join(t.TempDir(), "in.env")
+	os.WriteFile(src, []byte("TOKEN=dummy-recover\n"), 0o600)
+	alice.withPW("push", "-p", "api", "-e", "development", "--from", src, "--yes")
+
+	// Forgot the account password: recover with the key, keep access.
+	if r := alice.run(nil, "VENR"+rk[4:]+"\nnew account password\n", "--password-stdin", "account", "recover"); r.code == 0 {
+		t.Fatal("a vault recovery key was accepted for the account")
+	}
+	old := alice.pw
+	alice.must(rk+"\nnew account password\n", "--password-stdin", "account", "recover")
+	alice.pw = "new account password"
+	if r := alice.withPW("pull", "-p", "api", "-e", "development", "--stdout"); parseDotenv(t, r.stdout)["TOKEN"] != "dummy-recover" {
+		t.Fatalf("pull after recovery: %q", r.stdout)
+	}
+	if r := alice.run(nil, old+"\n", "--password-stdin", "pull", "-p", "api", "-e", "development", "--stdout"); r.code != ExitAuth {
+		t.Fatalf("old account password still works: %d", r.code)
+	}
+
+	// A new recovery key replaces the old one.
+	r = alice.withPW("account", "recovery-key", "--yes")
+	rk2 := strings.TrimSpace(r.stdout)
+	if rk2 == rk || !strings.HasPrefix(rk2, "VENA-") {
+		t.Fatalf("new recovery key %q", r.stdout)
+	}
+	if r := alice.run(nil, rk+"\nthird account password\n", "--password-stdin", "account", "recover"); r.code != ExitAuth {
+		t.Fatalf("old recovery key still works: %d %s", r.code, r.stderr)
+	}
+	alice.must(rk2+"\nthird account password\n", "--password-stdin", "account", "recover")
+}

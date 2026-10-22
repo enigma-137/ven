@@ -93,19 +93,19 @@ make build        # bin/ven, dashboard included</code></pre>
       <h2>Quick start: just you</h2>
       <p>Everything stays on your computer. No account, no network.</p>
       <ol class="steps-list">
-        <li><p>Create your vault and choose a master password (10+ characters).</p><pre><code>ven init</code></pre></li>
+        <li><p>Create your vault and choose a master password (10+ characters). VEN also shows a one-time <strong>recovery key</strong>: save it in a password manager or on paper.</p><pre><code>ven init</code></pre></li>
         <li><p>Make a project. It comes with <code>development</code>, <code>staging</code> and <code>production</code>.</p><pre><code>ven projects create "Billing API"</code></pre></li>
         <li><p>Bring in an existing <code>.env</code>. VEN shows what's new or changed before saving.</p><pre><code>ven import .env -p billing-api -e development</code></pre></li>
         <li><p>Write it back out whenever you need a file.</p><pre><code>ven export -p billing-api -e development --out .env</code></pre></li>
         <li><p>Prefer clicking? Open the dashboard.</p><pre><code>ven ui</code></pre></li>
       </ol>
-      <div class="note warn">There is no password reset. If you forget the master password, nobody can decrypt the vault, including you.</div>
+      <div class="note">Forgot your master password? <code>ven password reset</code> with your recovery key sets a new one, and every value is still there. Without the password <em>and</em> the recovery key, nobody can decrypt the vault, including us.</div>
     </section>
 
     <section id="quick-team">
       <h2>Quick start: your team</h2>
       <ol class="steps-list">
-        <li><p>Log in with GitHub. The first time, you also choose an <strong>account password</strong>.</p><pre><code>ven login</code></pre></li>
+        <li><p>Log in with GitHub. The first time, you also choose an <strong>account password</strong> and get an account <strong>recovery key</strong> to save.</p><pre><code>ven login</code></pre></li>
         <li><p>Create a shared project.</p><pre><code>ven remote create "Billing API"</code></pre></li>
         <li><p>Link your project folder so you don't have to type the names again.</p><pre><code>ven link billing-api -e development</code></pre></li>
         <li><p>Upload your <code>.env</code>, encrypted on your machine.</p><pre><code>ven push</code></pre></li>
@@ -166,10 +166,12 @@ ven unset STRIPE_KEY -p api -e development</code></pre>
     <section id="login">
       <h2>Log in</h2>
       <p><code>ven login</code> shows a short code. Open the link, type the code on GitHub and approve. VEN asks GitHub for <em>no permissions</em>: it only learns your username.</p>
-      <p>The first time, you choose an <strong>account password</strong>. It unlocks your account key, which is what actually decrypts shared environments. It never leaves your machine, and neither VEN nor GitHub can recover it. Forgot it? See <a href="#faq">troubleshooting</a>.</p>
+      <p>The first time, you choose an <strong>account password</strong>. It unlocks your account key, which is what actually decrypts shared environments. It never leaves your machine, and neither VEN nor GitHub can reset it. You also get an <strong>account recovery key</strong> (<code>VENA-…</code>) that can: save it somewhere safe.</p>
       <pre><code>ven login
-ven whoami      # your username and key fingerprint
-ven logout      # ends this device's session</code></pre>
+ven whoami                  # your username and key fingerprint
+ven account recover         # forgot the account password: use your recovery key
+ven account recovery-key    # make a new recovery key
+ven logout                  # ends this device's session</code></pre>
       <div class="note">GitHub proves <em>who you are</em>. Your account password protects <em>what you can read</em>. Someone who steals your GitHub login still can't decrypt anything.</div>
     </section>
 
@@ -304,6 +306,7 @@ ven audit --limit 200</code></pre>
           <tr><td>Your GitHub account</td><td>They see project names and members, not values. They'd still need your account password.</td></tr>
           <tr><td>The VEN server</td><td>Ciphertext only. Weak passwords could be guessed offline, slowly, so use a strong one.</td></tr>
           <tr><td>A service token</td><td>Read access to its environments until you revoke it. Revoke it and change those secrets at the source.</td></tr>
+          <tr><td>A recovery key</td><td>Local (<code>VENR</code>): together with a copy of your vault file, it opens the vault, so make a new one with <code>ven password recovery-key</code>. Account (<code>VENA</code>): together with your GitHub login, it opens your account key, so make a new one with <code>ven account recovery-key</code>.</td></tr>
           <tr><td>A teammate leaves</td><td>Remove them; keys change automatically. Change anything they pulled at the source.</td></tr>
         </tbody>
       </table>
@@ -333,7 +336,7 @@ ven audit --limit 200</code></pre>
           <tr><td><code>import &lt;file&gt; -p -e</code></td><td>Import a dotenv file, with preview</td></tr>
           <tr><td><code>export -p -e [--out f | --stdout]</code></td><td>Export as dotenv</td></tr>
           <tr><td><code>list | get | set | unset</code></td><td>Work with single variables</td></tr>
-          <tr><td><code>password change</code></td><td>Change the master password</td></tr>
+          <tr><td><code>password change|reset|recovery-key</code></td><td>Change the master password, reset it with your recovery key, or make a new recovery key</td></tr>
           <tr><td><code>ui</code></td><td>Open the local dashboard</td></tr>
         </tbody>
       </table>
@@ -341,6 +344,7 @@ ven audit --limit 200</code></pre>
       <table class="ref">
         <tbody>
           <tr><td><code>login | logout | whoami</code></td><td>Account and key fingerprint</td></tr>
+          <tr><td><code>account recover|recovery-key</code></td><td>Reset a forgotten account password, or make a new recovery key</td></tr>
           <tr><td><code>remote list|create|publish|envs create|rotate|delete</code></td><td>Shared projects</td></tr>
           <tr><td><code>link &lt;project&gt; -e &lt;env&gt;</code></td><td>Remember project/environment for this folder</td></tr>
           <tr><td><code>pull | push</code></td><td>Download / upload an environment</td></tr>
@@ -368,7 +372,8 @@ ven audit --limit 200</code></pre>
 
     <section id="faq">
       <h2>Troubleshooting</h2>
-      <details><summary>I forgot my password</summary><p><strong>Local master password:</strong> the vault can't be recovered. <strong>Account password:</strong> run <code>ven login --reset-key</code> and choose a new one. You lose access to shared environments until an admin shares them with you again (<code>ven share --to you</code>). Your teammates still hold the keys, so the team loses nothing.</p></details>
+      <details><summary>I forgot my password</summary><p><strong>Master password (local vault):</strong> run <code>ven password reset</code> and enter your recovery key (<code>VENR-…</code>). Your values are untouched.</p><p><strong>Account password (teams):</strong> run <code>ven account recover</code> and enter your account recovery key (<code>VENA-…</code>). Your access is kept.</p><p><strong>Lost the recovery key too?</strong> The local vault can't be opened. For teams, <code>ven login --reset-key</code> gives you a new account key; admins then share with you again, and the team loses nothing.</p></details>
+      <details><summary>I never got a recovery key</summary><p>Vaults and accounts created before recovery keys existed don't have one. Make one now: <code>ven password recovery-key</code> for your local vault, <code>ven account recovery-key</code> for your team account. <code>ven status</code> shows whether your vault has one.</p></details>
       <details><summary>"waiting for approval"</summary><p>The environment is protected. Ask an admin to run <code>ven members approve &lt;you&gt;</code>, and read them your <code>ven whoami</code> fingerprint.</p></details>
       <details><summary>"changed since you last pulled"</summary><p>Someone pushed first. Run <code>ven pull</code>, reapply your change, then <code>ven push</code>.</p></details>
       <details><summary>"key must be rotated"</summary><p>Someone lost access. Any developer or admin with access fixes it by running <code>ven pull</code>, which changes the key automatically, or <code>ven remote rotate</code>.</p></details>

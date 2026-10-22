@@ -140,7 +140,22 @@ Go strings are immutable and the garbage collector may copy memory, and browsers
 own copies of anything displayed or fetched, so **complete erasure of secrets from memory
 cannot be guaranteed** in either runtime.
 
-## No recovery
+## Recovery key
 
-There is no recovery key or reset in V1. If you forget the master password, the values cannot
-be decrypted. Recovery-key workflows are on the [roadmap](../ROADMAP.md).
+`ven init` (and the dashboard's setup) shows a one-time recovery key, `VENR-` followed by 160
+random bits in base32. It is a second, independent wrap of the same vault data key:
+
+| Item | Choice |
+| --- | --- |
+| Wrapping key | HKDF-SHA256 over the recovery key with a random 16-byte salt (the key is high-entropy, so no password KDF is needed) |
+| Wrap | AES-256-GCM; associated data binds it to the vault ID and salt |
+| Storage | `vault_recovery` table; the recovery key itself is never stored |
+
+`ven password reset` unwraps the data key with the recovery key and wraps it under a new master
+password; values are untouched. `ven password recovery-key` replaces the recovery key (the old
+one stops working). Vaults created before recovery keys existed have none until you run that
+command; `ven status` says whether one is set.
+
+Anyone holding the recovery key and a copy of the vault file can read the vault, exactly as with
+the master password. Store it offline or in a password manager, not next to the vault. If you
+lose both the master password and the recovery key, the values cannot be decrypted.

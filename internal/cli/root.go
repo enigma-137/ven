@@ -66,7 +66,8 @@ func exitCode(err error) int {
 		return ee.code
 	case errors.Is(err, ErrCancelled):
 		return ExitCancelled
-	case errors.Is(err, vault.ErrNotInitialized), errors.Is(err, vault.ErrIncorrectPassword):
+	case errors.Is(err, vault.ErrNotInitialized), errors.Is(err, vault.ErrIncorrectPassword),
+		errors.Is(err, vault.ErrIncorrectRecoveryKey), errors.Is(err, vault.ErrNoRecoveryKey):
 		return ExitAuth
 	case errors.Is(err, storage.ErrNotFound):
 		return ExitNotFound
@@ -158,7 +159,8 @@ func (c *cli) rootCommand() *cobra.Command {
 		Long: `VEN stores environment variables for your projects in a local encrypted vault.
 
 Values are encrypted with AES-256-GCM under a vault key that is wrapped by
-your master password (Argon2id). There is no password recovery in V1.
+your master password (Argon2id). A one-time recovery key, shown when you
+create the vault, can reset a forgotten password.
 
 Each command that reads or writes values asks for the master password;
 there is no background unlock daemon. Metadata commands (listing projects,
@@ -201,6 +203,7 @@ end-to-end encrypted. Start with 'ven login --help'.`,
 		c.loginCommand(),
 		c.logoutCommand(),
 		c.whoamiCommand(),
+		c.accountCommand(),
 		c.remoteCommand(),
 		c.linkCommand(),
 		c.pullCommand(),

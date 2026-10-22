@@ -16,7 +16,6 @@ See the [README](README.md).
 - CI/CD integrations.
 - Advanced audit history.
 - OS keychain integration for unlocking.
-- Recovery-key workflows.
 - External security review and further hardening.
 
 Accounts, teams and terminal sharing are designed in [docs/v2-design.md](docs/v2-design.md).

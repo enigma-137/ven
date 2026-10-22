@@ -243,7 +243,12 @@ the server code in build step 1.
 - **Account password** is separate from the local vault's master password (you may choose the
   same one). Creating projects and joining only need your public key; decrypting needs the
   password.
-- **Forgotten account password**: `ven login --reset-key` replaces the account key. The server
+- **Account recovery key**: the first `ven login` also prints a recovery key (`VENA-…`), a
+  second wrap of the account private key (HKDF-SHA256 + AES-256-GCM, bound to the user ID and
+  public key) stored with the password wrap. `ven account recover` sets a new account password
+  and keeps all access; `ven account recovery-key` replaces it. Re-uploading a wrap of the same
+  public key is allowed, because nobody can produce a valid wrap without holding the key.
+- **Forgotten account password and lost recovery key**: `ven login --reset-key` replaces the account key. The server
   deletes every environment key sealed to the old one and flags those environments for
   rotation, so the reset never grants access; admins share with the user again (protected
   environments still need an approval showing the new fingerprint). Recorded in each project's

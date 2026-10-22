@@ -281,8 +281,23 @@ func (s *Server) initVault(w http.ResponseWriter, r *http.Request, rc *reqCtx) {
 		s.writeServiceError(w, err)
 		return
 	}
+	// The recovery key is returned exactly once, in this response.
+	rk, err := s.cfg.App.Vault.CreateRecoveryKey(r.Context(), k)
+	if err != nil {
+		k.Destroy()
+		s.writeServiceError(w, err)
+		return
+	}
 	s.setKey(rc.sess, k)
-	s.respondSession(w, r, rc.sess)
+	d, err := s.sessionState(r, rc.sess)
+	if err != nil {
+		s.writeServiceError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, struct {
+		sessionDTO
+		RecoveryKey string `json:"recoveryKey"`
+	}{d, rk})
 }
 
 func (s *Server) unlockVault(w http.ResponseWriter, r *http.Request, rc *reqCtx) {

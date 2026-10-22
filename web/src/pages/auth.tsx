@@ -1,5 +1,6 @@
 import { useState, type FormEvent, type ReactNode } from "react";
-import { api, ApiError, errorMessage } from "@/lib/api";
+import { api, ApiError, errorMessage, type SessionState } from "@/lib/api";
+import { copyText } from "@/lib/utils";
 import { useSession } from "@/lib/session";
 import { Button } from "@/components/ui/button";
 import { Alert, Field, Input } from "@/components/ui/form";
@@ -65,8 +66,24 @@ export function SetupScreen() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Held in memory only until the user confirms they saved the key.
+  const [created, setCreated] = useState<{ session: SessionState; recoveryKey: string } | null>(null);
+
   const tooShort = [...password].length < MIN_PASSWORD;
   const mismatch = confirm !== password;
+
+  if (created) {
+    return (
+      <RecoveryKeyScreen
+        recoveryKey={created.recoveryKey}
+        onDone={() => {
+          const s = created.session;
+          setCreated(null);
+          apply(s);
+        }}
+      />
+    );
+  }
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -75,10 +92,10 @@ export function SetupScreen() {
     setBusy(true);
     setError(null);
     try {
-      const s = await api.initVault(password);
+      const { recoveryKey, ...s } = await api.initVault(password);
       setPassword("");
       setConfirm("");
-      apply(s);
+      setCreated({ session: s, recoveryKey });
     } catch (err) {
       setError(errorMessage(err));
     } finally {
@@ -95,12 +112,12 @@ export function SetupScreen() {
         <Field label="Confirm master password" error={touched && mismatch ? "Passwords do not match." : null}>
           {(p) => <Input {...p} type="password" autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} />}
         </Field>
-        <Alert tone="warning" title="No recovery">
-          VEN V1 has no password recovery. If you forget this password, your stored values cannot be decrypted.
+        <Alert tone="warning" title="Keep it safe">
+          Nobody can reset this password for you. Next, VEN shows a one-time recovery key that can.
         </Alert>
         <label className="flex items-start gap-2 text-[13px]">
           <input type="checkbox" className="mt-0.5 h-4 w-4 accent-accent" checked={ack} onChange={(e) => setAck(e.target.checked)} />
-          <span>I understand that the master password cannot be recovered.</span>
+          <span>I understand that without the password and the recovery key, my values cannot be decrypted.</span>
         </label>
         {touched && !ack && <p className="-mt-2 text-[13px] text-danger">Please confirm you understand.</p>}
         {error && <Alert tone="danger">{error}</Alert>}
@@ -108,6 +125,45 @@ export function SetupScreen() {
           Create vault
         </Button>
       </form>
+    </Shell>
+  );
+}
+
+function RecoveryKeyScreen({ recoveryKey, onDone }: { recoveryKey: string; onDone: () => void }) {
+  const [saved, setSaved] = useState(false);
+  const [copied, setCopied] = useState(false);
+  return (
+    <Shell title="Save your recovery key" subtitle="This is the only time it is shown.">
+      <div className="flex flex-col gap-4">
+        <code className="block select-all break-all rounded-panel border border-border bg-surface px-3 py-3 text-center font-mono text-[15px] tracking-wide text-fg">
+          {recoveryKey}
+        </code>
+        <Button
+          variant="secondary"
+          className="justify-center"
+          onClick={async () => {
+            try {
+              await copyText(recoveryKey);
+              setCopied(true);
+            } catch {
+              setCopied(false);
+            }
+          }}
+        >
+          {copied ? "Copied" : "Copy recovery key"}
+        </Button>
+        <p className="text-[13px] text-muted">
+          Store it in a password manager or write it down, away from this computer. If you forget your master password, run{" "}
+          <code className="rounded bg-surface px-1 py-0.5">ven password reset</code> and enter this key. Anyone with it can set a new password, so keep it private.
+        </p>
+        <label className="flex items-start gap-2 text-[13px]">
+          <input type="checkbox" className="mt-0.5 h-4 w-4 accent-accent" checked={saved} onChange={(e) => setSaved(e.target.checked)} />
+          <span>I saved my recovery key somewhere safe.</span>
+        </label>
+        <Button variant="primary" className="justify-center" disabled={!saved} onClick={onDone}>
+          Continue
+        </Button>
+      </div>
     </Shell>
   );
 }

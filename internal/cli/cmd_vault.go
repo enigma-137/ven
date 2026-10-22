@@ -12,8 +12,22 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const noRecoveryNotice = `There is no password recovery in VEN V1. If you forget the master password,
-the values in this vault cannot be decrypted by anyone, including you.`
+const noRecoveryNotice = `Nobody can reset the master password for you. VEN gives you a one-time
+recovery key instead: keep it somewhere safe (a password manager or on paper).
+Without the password and the recovery key, nobody can decrypt this vault.`
+
+// printRecoveryKey shows a recovery key once: the key on stdout (so scripts
+// can capture it), the explanation on stderr.
+func (c *cli) printRecoveryKey(key, resetCmd string) {
+	c.infof("")
+	c.infof("%s", c.color(colorBold, "Your recovery key (shown once):"))
+	c.infof("")
+	fmt.Fprintln(c.env.Out, key)
+	c.infof("")
+	c.infof("Save it in a password manager or write it down, away from this computer.")
+	c.infof("If you forget your password: %s", resetCmd)
+	c.infof("Anyone with this key can set a new password, so keep it private.")
+}
 
 // readNewPassword asks for a new master password twice.
 func (c *cli) readNewPassword(label string) ([]byte, error) {
@@ -84,8 +98,15 @@ func (c *cli) initCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			k.Destroy()
-			c.successf("Vault created. Next: ven projects create <name>")
+			defer k.Destroy()
+			c.successf("Vault created.")
+			rk, err := a.Vault.CreateRecoveryKey(ctx, k)
+			if err != nil {
+				return fmt.Errorf("vault created, but the recovery key failed (run ven password recovery-key): %w", err)
+			}
+			c.printRecoveryKey(rk, "ven password reset")
+			c.infof("")
+			c.infof("Next: ven projects create <name>")
 			return nil
 		},
 	}
@@ -121,6 +142,13 @@ func (c *cli) statusCommand() *cobra.Command {
 			fmt.Fprintf(out, "Projects:     %d\n", n)
 			fmt.Fprintf(out, "Created:      %s\n", storage.ParseTime(st.CreatedAt).Local().Format("2006-01-02 15:04"))
 			fmt.Fprintf(out, "Key wrapping: argon2id (m=%d MiB, t=%d, p=%d) + AES-256-GCM\n", st.KDF.Memory/1024, st.KDF.Iterations, st.KDF.Parallelism)
+			if has, err := a.Vault.HasRecoveryKey(ctx); err == nil {
+				if has {
+					fmt.Fprintln(out, "Recovery key: set")
+				} else {
+					fmt.Fprintln(out, "Recovery key: not set (create one with `ven password recovery-key`)")
+				}
+			}
 			fmt.Fprintf(out, "Schema:       v%d\n", schema)
 			fmt.Fprintf(out, "Version:      %s\n", app.Version)
 			return nil
@@ -131,7 +159,7 @@ func (c *cli) statusCommand() *cobra.Command {
 func (c *cli) passwordCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "password",
-		Short: "Manage the master password",
+		Short: "Change, reset or recover the master password",
 	}
 	cmd.AddCommand(&cobra.Command{
 		Use:   "change",
@@ -174,6 +202,95 @@ func (c *cli) passwordCommand() *cobra.Command {
 				return fmt.Errorf("change password: %w", err)
 			}
 			c.successf("Master password changed.")
+			return nil
+		},
+	})
+	var yes bool
+	recoveryKey := &cobra.Command{
+		Use:   "recovery-key",
+		Short: "Create a new recovery key (replaces the old one)",
+		Long: `Create a recovery key for this vault, or replace the existing one. The old
+recovery key stops working. Needs the master password.`,
+		Args: cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			ctx := cmd.Context()
+			a, err := c.requireInitialized(ctx)
+			if err != nil {
+				return err
+			}
+			has, err := a.Vault.HasRecoveryKey(ctx)
+			if err != nil {
+				return err
+			}
+			if has && !yes {
+				if !c.env.Term.Interactive() {
+					return needInput("this replaces your current recovery key; pass --yes to confirm")
+				}
+				ok, err := c.confirm("Replace your current recovery key? The old one will stop working.", false)
+				if err != nil {
+					return err
+				}
+				if !ok {
+					return ErrCancelled
+				}
+			}
+			k, err := c.unlock(ctx)
+			if err != nil {
+				return err
+			}
+			defer k.Destroy()
+			rk, err := a.Vault.CreateRecoveryKey(ctx, k)
+			if err != nil {
+				return err
+			}
+			c.successf("Recovery key created.")
+			c.printRecoveryKey(rk, "ven password reset")
+			return nil
+		},
+	}
+	recoveryKey.Flags().BoolVarP(&yes, "yes", "y", false, "replace an existing recovery key without asking")
+	cmd.AddCommand(recoveryKey)
+	cmd.AddCommand(&cobra.Command{
+		Use:   "reset",
+		Short: "Set a new master password using your recovery key",
+		Long: `Forgot the master password? Enter your recovery key and choose a new password.
+Your values are untouched and the recovery key keeps working.
+
+With --password-stdin, the first line of stdin is the recovery key and the
+second line the new password.`,
+		Args: cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			ctx := cmd.Context()
+			a, err := c.requireInitialized(ctx)
+			if err != nil {
+				return err
+			}
+			var rk []byte
+			if c.opts.passwordStdin {
+				if rk, err = c.readStdinLine(); err != nil {
+					return err
+				}
+			} else {
+				if !c.env.Term.Interactive() {
+					return needInput("the recovery key is required: run in a terminal or pass --password-stdin")
+				}
+				if rk, err = c.env.Term.ReadPassword("Recovery key: "); err != nil {
+					return err
+				}
+			}
+			defer vault.Wipe(rk)
+			if _, err := vault.ParseRecoveryKey(vault.VaultRecoveryPrefix, string(rk)); err != nil {
+				return usageErr("%v", err)
+			}
+			next, err := c.readNewPassword("New master password")
+			if err != nil {
+				return err
+			}
+			defer vault.Wipe(next)
+			if err := a.Vault.ResetPassword(ctx, string(rk), next); err != nil {
+				return err
+			}
+			c.successf("Master password reset. Your values are untouched.")
 			return nil
 		},
 	})

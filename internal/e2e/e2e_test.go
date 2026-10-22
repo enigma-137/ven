@@ -134,3 +134,34 @@ func TestFingerprint(t *testing.T) {
 		t.Fatalf("fingerprint %q", fa)
 	}
 }
+
+func TestAccountRecovery(t *testing.T) {
+	priv, _ := GenerateKey()
+	pub := priv.PublicKey().Bytes()
+	w, _ := WrapPrivateKey(priv, []byte("account password"), "u1", testKDF)
+	if _, err := RecoverPrivateKey(w, "VENA-AAAA", "u1", pub); err == nil {
+		t.Fatal("recovered without a recovery wrap")
+	}
+	rk, err := AddRecovery(w, priv, "u1")
+	if err != nil || !strings.HasPrefix(rk, "VENA-") {
+		t.Fatalf("add: %q %v", rk, err)
+	}
+	got, err := RecoverPrivateKey(w, rk, "u1", pub)
+	if err != nil || !bytes.Equal(got.Bytes(), priv.Bytes()) {
+		t.Fatalf("recover: %v", err)
+	}
+	if _, err := RecoverPrivateKey(w, rk, "u2", pub); !errors.Is(err, ErrIncorrectRecoveryKey) {
+		t.Fatalf("other user: %v", err)
+	}
+	_, other, _ := vault.NewRecoveryKey(AccountRecoveryPrefix)
+	if _, err := RecoverPrivateKey(w, other, "u1", pub); !errors.Is(err, ErrIncorrectRecoveryKey) {
+		t.Fatalf("wrong key: %v", err)
+	}
+	if _, err := RecoverPrivateKey(w, "VENR"+rk[4:], "u1", pub); err == nil {
+		t.Fatal("vault recovery key accepted for the account")
+	}
+	// The password wrap is unaffected by adding recovery.
+	if _, err := UnwrapPrivateKey(w, []byte("account password"), "u1", pub); err != nil {
+		t.Fatal(err)
+	}
+}
