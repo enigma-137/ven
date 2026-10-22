@@ -182,3 +182,32 @@ its environments under new keys) so you can start sharing it.
 | 2 | Login providers | **GitHub first, Google second.** GitLab only if users ask. | GitHub covers most developers. Google covers everyone else, and its basic `openid email profile` sign-in needs no paid verification and supports a terminal flow. Invites are bound to a GitHub username or a Google email address. |
 | 3 | Membership expiry | **30 days by default, renewable** (`ven members renew octocat --for 30d`). `--expires never` must be stated explicitly and is admin-only. Service tokens: 90 days by default, 1 year maximum. | Forgotten access ends on its own. Renewing is one command, and VEN warns owners 5 days before expiry. |
 | 4 | Fingerprint check | **Required for `production` environments, optional elsewhere.** | Production is where a swapped key would hurt most. Comparing a 6-word code once per teammate is cheap. It is CLI code only, with no running cost. |
+
+## 11. Deployment (first hosted instance)
+
+Target: the existing Interserver VPS that also runs TraceIQ (Ubuntu 26.04, 1 vCPU, 3.3 GiB RAM,
+~40 GB free disk, checked 2026-10-22). VEN's footprint is expected to be tens of MB of RAM and
+well under 1 GB of disk. The server does no Argon2id work, because password-based key wrapping
+happens on users' machines, so one vCPU is enough.
+
+| Item | Value |
+| --- | --- |
+| Folder | `/home/traceiq/ven` (`0700`), database in `/home/traceiq/ven/data` (`0700`, file `0600`) |
+| Listen address | `127.0.0.1:4100` (TraceIQ uses 4000/4001; Caddy admin is 2019) |
+| Public access | Through the existing Caddy on 80/443, which handles TLS; VEN never listens on a public interface |
+| Process | systemd unit running as `traceiq`, `Restart=on-failure`, hardened with `NoNewPrivileges`, `ProtectSystem=strict`, `ReadWritePaths=/home/traceiq/ven/data`, `PrivateTmp`, and a memory cap so VEN can never starve TraceIQ |
+| Secrets | GitHub/Google OAuth client secrets in `/home/traceiq/ven/env` (`0600`), loaded by systemd, never in the repo |
+| Backups | Nightly `sqlite3 .backup` into `/home/traceiq/ven/backups`, keeping the last 14, copied off the VPS. Backups hold only ciphertext |
+| Domain | To be decided (e.g. `ven.<your-domain>`), DNS A record → the VPS |
+
+Caddy site block, added next to TraceIQ's and not replacing it:
+
+```
+ven.example.com {
+    reverse_proxy 127.0.0.1:4100
+    header Strict-Transport-Security "max-age=31536000; includeSubDomains"
+}
+```
+
+The unit file, Caddy snippet and backup script will be committed under `deploy/` together with
+the server code in build step 1.
