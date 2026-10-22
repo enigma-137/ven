@@ -61,6 +61,7 @@ func (s *Server) routes() {
 
 	m.HandleFunc("GET "+p+"/audit", s.authed(maxBodyBytes, s.listAudit))
 
+	s.siteRoutes()
 	m.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusNotFound, api.Error{Code: api.CodeNotFound, Message: "not found"})
 	})

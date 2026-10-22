@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VEN — your .env, in order</title>
+<meta name="description" content="An encrypted vault for .env files. One vault for every project, shared with your team from the terminal.">
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/assets/site.css">
+<script src="/assets/site.js" defer></script>
+</head>
+<body>
+<header class="nav wrap">
+  <a class="logo" href="/" aria-label="VEN home">VEN<span class="cursor" aria-hidden="true"></span></a>
+  <nav>
+    <a href="https://github.com/enigma-137/ven#readme">Docs</a>
+    <a href="https://github.com/enigma-137/ven">GitHub</a>
+  </nav>
+</header>
+
+<main>
+  <section class="hero wrap">
+    <div class="pitch">
+      <h1><span class="nowrap">Your <span class="chip"><i></i>env,</span></span><br>in order.</h1>
+      <p class="sub">One vault. Every project. Every teammate.</p>
+      <div class="ctas">
+        <a class="btn btn-lemon" href="https://github.com/enigma-137/ven#install-and-build">Get VEN <span aria-hidden="true">→</span></a>
+        <a class="btn btn-line" href="https://github.com/enigma-137/ven">View on GitHub
+          <svg viewBox="0 0 16 16" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+        </a>
+      </div>
+      <div class="cmd" data-copy="ven login">
+        <code><span class="dim">$</span> <span class="typed" data-words="ven login|ven pull|ven share --to octocat|ven run -- npm run dev">ven login</span></code>
+        <button class="copy" type="button" aria-label="Copy command">
+          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M16 8V6.5A2.5 2.5 0 0 0 13.5 4h-7A2.5 2.5 0 0 0 4 6.5v7A2.5 2.5 0 0 0 6.5 16H8" fill="none" stroke="currentColor" stroke-width="1.7"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="stage" aria-hidden="true">
+      <span class="brace brace-l">{</span>
+      <span class="brace brace-r">}</span>
+      <div class="dots dots-tr"></div>
+      <div class="slab"></div>
+
+      <div class="window app">
+        <div class="bar"><b></b><b></b><b></b></div>
+        <div class="app-body">
+          <aside>
+            <div class="side-h"><span>Projects</span><span class="plus">+</span></div>
+            <div class="side-i on"><span class="cube"></span>Billing API</div>
+            <div class="side-i"><span class="cube"></span>Storefront</div>
+            <div class="side-i"><span class="cube"></span>Mobile</div>
+            <div class="team">
+              <span class="av av1">A</span><span class="av av2">B</span><span class="av av3">+2</span>
+            </div>
+          </aside>
+          <div class="content">
+            <div class="content-h"><strong>Billing API</strong><span class="add">+ Add variable</span></div>
+            <div class="tabs"><span class="on">Development</span><span>Staging</span><span class="lock">Production</span></div>
+            <div class="table">
+              <div class="row head"><span>Key</span><span>Value</span><span></span></div>
+              <div class="row"><span class="k">DATABASE_URL</span><span class="v mask" data-real="postgres://dev@db:5432">••••••••••••</span><span class="ic"></span></div>
+              <div class="row"><span class="k">STRIPE_KEY</span><span class="v mask" data-real="sk_test_4eC39Hq…">•••••••••••••</span><span class="ic"></span></div>
+              <div class="row"><span class="k">PORT</span><span class="v">3000</span><span class="ic"></span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="window term">
+        <div class="bar"><b></b><b></b><b></b></div>
+        <div class="term-body">
+          <div><span class="dim">$</span> ven pull</div>
+          <div><span class="ok"></span>Wrote 3 variables to .env</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="steps wrap" aria-label="How it works">
+    <div class="step"><strong>Import.</strong></div>
+    <span class="line"></span>
+    <div class="step"><strong>Organize.</strong></div>
+    <span class="line"></span>
+    <div class="step"><strong>Share.</strong></div>
+  </section>
+
+  <section class="facts wrap">
+    <div class="fact">
+      <span class="glyph g-lock"></span>
+      <h2>Encrypted before it leaves</h2>
+      <p>Your laptop locks it. The server only ever sees noise.</p>
+    </div>
+    <div class="fact">
+      <span class="glyph g-key"></span>
+      <h2>Invites that expire</h2>
+      <p>One person, one use, gone in a day.</p>
+    </div>
+    <div class="fact">
+      <span class="glyph g-term"></span>
+      <h2>Lives in your terminal</h2>
+      <p><code>ven run -- npm run dev</code> and nothing touches disk.</p>
+    </div>
+  </section>
+</main>
+
+<footer class="foot wrap">
+  <span>VEN<span class="cursor small" aria-hidden="true"></span></span>
+  <span class="dim">Open source · Apache-2.0</span>
+</footer>
+</body>
+</html>

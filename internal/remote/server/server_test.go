@@ -311,3 +311,20 @@ func TestTrustProxy(t *testing.T) {
 		t.Fatalf("ip = %s", ip)
 	}
 }
+
+func TestLandingPage(t *testing.T) {
+	ts := newTestServer(t)
+	for path, want := range map[string]int{"/": 200, "/assets/site.css": 200, "/assets/": 404, "/nope": 404} {
+		resp, err := http.Get(ts.url + path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		resp.Body.Close()
+		if resp.StatusCode != want {
+			t.Fatalf("%s: %d, want %d", path, resp.StatusCode, want)
+		}
+		if want == 200 && !strings.Contains(resp.Header.Get("Content-Security-Policy"), "script-src 'self'") {
+			t.Fatalf("%s: CSP %q", path, resp.Header.Get("Content-Security-Policy"))
+		}
+	}
+}
