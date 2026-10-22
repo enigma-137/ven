@@ -19,7 +19,9 @@ See the [README](README.md).
 - Recovery-key workflows.
 - External security review and further hardening.
 
-The proposed design for accounts, teams and terminal sharing is in
-[docs/v2-design.md](docs/v2-design.md).
+Accounts, teams and terminal sharing are designed in [docs/v2-design.md](docs/v2-design.md).
+Implemented so far (unreviewed): `ven server`, GitHub login, end-to-end encrypted hosted
+projects, invites with expiry, approvals for protected environments, key rotation, read-only
+service tokens and an audit log. Not yet: Google login, dashboard pages for teams, OS keychain.
 
 Nothing in V2 is promised on a timeline; priorities will follow user feedback.

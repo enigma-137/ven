@@ -1,5 +1,9 @@
 # Security model and limitations
 
+> The optional hosted features (V2 preview: `ven server`, login, sharing) have their own
+> threat model in [v2-design.md](v2-design.md) §6–7 and §12. This document covers the local
+> vault and dashboard.
+
 VEN V1 is a local, single-user tool. This document describes what it protects, how, and what
 it does not protect. **VEN has not been externally reviewed or audited.**
 

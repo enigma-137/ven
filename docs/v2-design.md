@@ -1,7 +1,9 @@
-# V2 design proposal: accounts, teams and sharing from the terminal
+# V2 design: accounts, teams and sharing from the terminal
 
-> **Status: proposal, not implemented.** This document is for discussion. Nothing here exists in
-> the code yet; names, flags and limits may change.
+> **Status: build steps 1–5 implemented, unreviewed.** `ven server`, GitHub login, hosted
+> projects, sharing, approvals, rotation, service tokens and the audit log exist in the code
+> (`internal/e2e`, `internal/remote`, `internal/cli`). Dashboard pages (step 6) and Google login
+> do not exist yet. Where the implementation differs from the original proposal, §12 says so.
 
 V1 is a local vault for one person. V2 adds what the [roadmap](../ROADMAP.md) lists under
 accounts, teams and sharing, with one goal: a teammate can get a project's variables into their
@@ -104,9 +106,9 @@ ven link billing-api --env development   # writes .ven.json: {"project":"billing
 
 ven pull                     # decrypt and write ./.env (0600, shows a diff, asks before overwriting)
 ven pull --stdout            # print dotenv to stdout, for pipes
-ven copy                     # copy the whole env (KEY=value lines) to the clipboard, clears after 45 s
+ven copy                     # copy the whole env (KEY=value lines) to the clipboard
 ven copy STRIPE_SECRET_KEY   # copy one value
-ven env                      # print `export KEY='value'` lines:  eval "$(ven env)"
+ven shellenv                 # print `export KEY='value'` lines:  eval "$(ven shellenv)"
 ven run -- npm run dev       # inject variables into one process, nothing written to disk
 ```
 
@@ -169,7 +171,7 @@ its environments under new keys) so you can start sharing it.
 1. **Server skeleton** (`ven server`, SQLite) + GitHub login with the device flow for the CLI
    and normal OAuth for the dashboard. Google login follows the same interface.
 2. **User keys**: key pair at first login, wrapped private key, second-device login.
-3. **Hosted projects**: publish, pull, push, `ven link`, `ven run`, `ven env`, `ven copy`.
+3. **Hosted projects**: publish, pull, push, `ven link`, `ven run`, `ven shellenv`, `ven copy`.
 4. **Sharing**: invites, join, roles, expiry, revoke + key rotation, audit log.
 5. **Service tokens** and a GitHub Actions example.
 6. Dashboard pages for members, invites, tokens and audit; then external review.
@@ -181,7 +183,7 @@ its environments under new keys) so you can start sharing it.
 | 1 | Hosting | **`ven server` is part of the same binary and anyone can self-host it. We run one small hosted instance ourselves.** The server uses **SQLite** (as in V1), not Postgres, until load proves otherwise. | The server only stores ciphertext and membership, so it is light: one small VPS (a few dollars a month) or a free/low tier on a container host is enough to start. Self-hosting costs us nothing and lets security-minded teams keep data in-house. Billing, if ever, comes later. |
 | 2 | Login providers | **GitHub first, Google second.** GitLab only if users ask. | GitHub covers most developers. Google covers everyone else, and its basic `openid email profile` sign-in needs no paid verification and supports a terminal flow. Invites are bound to a GitHub username or a Google email address. |
 | 3 | Membership expiry | **30 days by default, renewable** (`ven members renew octocat --for 30d`). `--expires never` must be stated explicitly and is admin-only. Service tokens: 90 days by default, 1 year maximum. | Forgotten access ends on its own. Renewing is one command, and VEN warns owners 5 days before expiry. |
-| 4 | Fingerprint check | **Required for `production` environments, optional elsewhere.** | Production is where a swapped key would hurt most. Comparing a 6-word code once per teammate is cheap. It is CLI code only, with no running cost. |
+| 4 | Fingerprint check | **Required for `production` environments, optional elsewhere.** | Production is where a swapped key would hurt most. Comparing a short code (six groups of four characters) once per teammate is cheap. It is CLI code only, with no running cost. |
 
 ## 11. Deployment (first hosted instance)
 
@@ -211,3 +213,33 @@ ven.example.com {
 
 The unit file, Caddy snippet and backup script will be committed under `deploy/` together with
 the server code in build step 1.
+
+## 12. Implementation notes (differences from the proposal)
+
+- **Command names**: `ven env` already meant `ven envs` in V1, so the shell-export command is
+  `ven shellenv`. Hosted project management lives under `ven remote` (`list`, `create`,
+  `publish`, `envs create`, `rotate`, `delete`); everyday commands are top level (`login`,
+  `logout`, `whoami`, `link`, `pull`, `push`, `run`, `shellenv`, `copy`, `share`, `join`,
+  `members`, `invites`, `tokens`, `audit`).
+- **One encrypted blob per environment**: the server stores each environment's whole dotenv
+  content as a single ciphertext with a revision number, not one row per variable. So the
+  server cannot see variable *names* either, and pushes are atomic with optimistic
+  concurrency (a push based on an old revision is refused). The audit log therefore records
+  "pulled revision N" rather than per-variable reads.
+- **Invites, tokens and users are all key holders**: every principal has an X25519 public key.
+  For invites and tokens the private key is derived from the secret inside the code/token.
+  Rotation re-seals the new environment key to all of them, so service tokens and pending
+  invites keep working after a teammate is removed; revoked ones simply are not re-sealed.
+- **Rotation is client-side**: the server flags an environment `needs_rotation` when a member
+  or token loses access (removal, expiry, revocation) and refuses new pushes until it is
+  rotated. `ven members remove` and `ven tokens revoke` rotate immediately; otherwise the next
+  `pull`/`push`/`run` by a developer or admin with access does it automatically.
+- **Session storage**: the CLI keeps the login in `account.json` (0600) next to the local vault,
+  not in the OS keychain yet. Access tokens last 1 h; refresh tokens 30 days, single use, and
+  reusing an old one ends the session on every device.
+- **Clipboard**: `ven copy` does not clear the clipboard automatically.
+- **Default role** for `ven share` is `viewer` (least privilege); pass `--role developer` to let
+  someone push.
+- **Account password** is separate from the local vault's master password (you may choose the
+  same one). Creating projects and joining only need your public key; decrypting needs the
+  password.

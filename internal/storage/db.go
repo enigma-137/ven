@@ -48,6 +48,17 @@ type DB struct {
 // Open opens (creating if needed) the vault database at path and applies
 // pending migrations. The parent directory is created with 0700 permissions.
 func Open(path string) (*DB, error) {
+	sub, err := fs.Sub(migrationFS, "migrations")
+	if err != nil {
+		return nil, err
+	}
+	return OpenWithMigrations(path, sub)
+}
+
+// OpenWithMigrations is Open with a different set of numbered migrations
+// (NNNN_name.sql at the root of migrations). The hosted server uses it for
+// its own schema while sharing the connection setup.
+func OpenWithMigrations(path string, migrations fs.FS) (*DB, error) {
 	abs, err := filepath.Abs(path)
 	if err != nil {
 		return nil, err
@@ -83,7 +94,7 @@ func Open(path string) (*DB, error) {
 		sqlDB.Close()
 		return nil, fmt.Errorf("open database: %w", err)
 	}
-	if err := db.migrate(context.Background()); err != nil {
+	if err := db.migrate(context.Background(), migrations); err != nil {
 		sqlDB.Close()
 		return nil, err
 	}
@@ -118,8 +129,8 @@ type migration struct {
 	sql     string
 }
 
-func loadMigrations() ([]migration, error) {
-	entries, err := fs.ReadDir(migrationFS, "migrations")
+func loadMigrations(fsys fs.FS) ([]migration, error) {
+	entries, err := fs.ReadDir(fsys, ".")
 	if err != nil {
 		return nil, err
 	}
@@ -134,7 +145,7 @@ func loadMigrations() ([]migration, error) {
 		if err != nil {
 			return nil, fmt.Errorf("invalid migration version in %q", name)
 		}
-		body, err := migrationFS.ReadFile("migrations/" + name)
+		body, err := fs.ReadFile(fsys, name)
 		if err != nil {
 			return nil, err
 		}
@@ -151,7 +162,7 @@ func (db *DB) SchemaVersion(ctx context.Context) (int, error) {
 	return int(v.Int64), err
 }
 
-func (db *DB) migrate(ctx context.Context) error {
+func (db *DB) migrate(ctx context.Context, fsys fs.FS) error {
 	if _, err := db.ExecContext(ctx, `CREATE TABLE IF NOT EXISTS schema_migrations (
 		version    INTEGER PRIMARY KEY,
 		name       TEXT NOT NULL,
@@ -159,7 +170,7 @@ func (db *DB) migrate(ctx context.Context) error {
 	)`); err != nil {
 		return fmt.Errorf("create schema_migrations: %w", err)
 	}
-	migrations, err := loadMigrations()
+	migrations, err := loadMigrations(fsys)
 	if err != nil {
 		return err
 	}
@@ -209,6 +220,9 @@ func ParseTime(s string) time.Time {
 	}
 	return t
 }
+
+// MapErr converts driver errors into ErrNotFound and ErrConflict.
+func MapErr(err error) error { return mapErr(err) }
 
 // mapErr converts driver errors into package sentinel errors.
 func mapErr(err error) error {

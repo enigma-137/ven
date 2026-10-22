@@ -1,0 +1,342 @@
+// Package api defines the JSON types exchanged between the VEN CLI and a
+// VEN server (`ven server`). Binary fields ([]byte) travel as standard
+// base64. The server never receives plaintext values, private keys or
+// invite/token secrets; see internal/e2e.
+package api
+
+import (
+	"time"
+
+	"github.com/enigma-137/ven/internal/e2e"
+)
+
+// Version is the API path prefix.
+const Version = "/v1"
+
+// Roles, lowest to highest.
+const (
+	RoleViewer    = "viewer"    // pull the environments they were given
+	RoleDeveloper = "developer" // viewer + push and rotate
+	RoleAdmin     = "admin"     // developer + invite, remove, tokens, environments
+	RoleOwner     = "owner"     // admin + delete the project
+)
+
+// RoleRank orders roles; unknown roles rank 0.
+func RoleRank(role string) int {
+	switch role {
+	case RoleViewer:
+		return 1
+	case RoleDeveloper:
+		return 2
+	case RoleAdmin:
+		return 3
+	case RoleOwner:
+		return 4
+	}
+	return 0
+}
+
+// Environment access states for the requesting principal.
+const (
+	AccessActive  = "active"  // holds a sealed key for the current key version
+	AccessPending = "pending" // protected environment waiting for approval
+)
+
+// Error codes returned in Error.Code.
+const (
+	CodeAuthPending      = "authorization_pending"
+	CodeSlowDown         = "slow_down"
+	CodeExpired          = "expired"
+	CodeDenied           = "access_denied"
+	CodeUnauthenticated  = "unauthenticated"
+	CodeForbidden        = "forbidden"
+	CodeNotFound         = "not_found"
+	CodeConflict         = "conflict"
+	CodeStale            = "stale"             // base revision or key version is out of date
+	CodeRotationRequired = "rotation_required" // a recipient lost access; rotate before writing
+	CodeInvalid          = "invalid"
+	CodeRateLimited      = "rate_limited"
+	CodeNoKey            = "no_account_key"
+	CodeInternal         = "internal"
+)
+
+// Error is the body of every non-2xx response.
+type Error struct {
+	Code    string `json:"code"`
+	Message string `json:"message"`
+}
+
+// DeviceStartRequest starts a login with an identity provider.
+type DeviceStartRequest struct {
+	Provider string `json:"provider"`
+}
+
+// DeviceStart tells the user where to authorize the login.
+type DeviceStart struct {
+	DeviceCode      string `json:"device_code"`
+	UserCode        string `json:"user_code"`
+	VerificationURI string `json:"verification_uri"`
+	Interval        int    `json:"interval"`
+	ExpiresIn       int    `json:"expires_in"`
+}
+
+// DevicePollRequest asks whether the user has authorized the login yet.
+type DevicePollRequest struct {
+	Provider   string `json:"provider"`
+	DeviceCode string `json:"device_code"`
+}
+
+// RefreshRequest exchanges a refresh token for a new session token pair.
+// Refresh tokens are single use; reusing one revokes the session.
+type RefreshRequest struct {
+	RefreshToken string `json:"refresh_token"`
+}
+
+// Session is a token pair plus the user it belongs to.
+type Session struct {
+	AccessToken      string    `json:"access_token"`
+	AccessExpiresAt  time.Time `json:"access_expires_at"`
+	RefreshToken     string    `json:"refresh_token"`
+	RefreshExpiresAt time.Time `json:"refresh_expires_at"`
+	User             User      `json:"user"`
+}
+
+// User is a VEN account, identified by a provider account.
+type User struct {
+	ID        string `json:"id"`
+	Provider  string `json:"provider"`
+	Handle    string `json:"handle"`
+	Name      string `json:"name,omitempty"`
+	PublicKey []byte `json:"public_key,omitempty"`
+}
+
+// Me is the logged-in user including their wrapped private key.
+type Me struct {
+	User
+	WrappedPrivateKey *e2e.WrappedPrivateKey `json:"wrapped_private_key,omitempty"`
+}
+
+// SetKeyRequest registers the account key pair. It can only be set once.
+type SetKeyRequest struct {
+	PublicKey         []byte                `json:"public_key"`
+	WrappedPrivateKey e2e.WrappedPrivateKey `json:"wrapped_private_key"`
+}
+
+// Project is a hosted project as seen by the requesting user.
+type Project struct {
+	ID              string        `json:"id"`
+	Owner           string        `json:"owner"`
+	Slug            string        `json:"slug"`
+	Name            string        `json:"name"`
+	Role            string        `json:"role"`
+	MemberExpiresAt *time.Time    `json:"member_expires_at,omitempty"`
+	CreatedAt       time.Time     `json:"created_at"`
+	Environments    []Environment `json:"environments"`
+}
+
+// Ref renders owner/slug.
+func (p Project) Ref() string { return p.Owner + "/" + p.Slug }
+
+// Environment is environment metadata. Access is the requester's state.
+type Environment struct {
+	ID            string    `json:"id"`
+	Name          string    `json:"name"`
+	Slug          string    `json:"slug"`
+	Protected     bool      `json:"protected"`
+	KeyVersion    int       `json:"key_version"`
+	Revision      int       `json:"revision"`
+	NeedsRotation bool      `json:"needs_rotation"`
+	Access        string    `json:"access,omitempty"`
+	UpdatedAt     time.Time `json:"updated_at"`
+}
+
+// CreateProjectRequest creates a project. IDs are generated by the client
+// because they are bound into the encryption of the environment keys.
+type CreateProjectRequest struct {
+	ID           string                     `json:"id"`
+	Name         string                     `json:"name"`
+	Environments []CreateEnvironmentRequest `json:"environments"`
+}
+
+// CreateEnvironmentRequest creates an environment with key version 1,
+// sealed to its creator.
+type CreateEnvironmentRequest struct {
+	ID        string `json:"id"`
+	Name      string `json:"name"`
+	Protected *bool  `json:"protected,omitempty"` // default: true for production-like names
+	SealedKey []byte `json:"sealed_key"`
+}
+
+// Content is one encrypted revision of an environment's dotenv content.
+type Content struct {
+	Nonce      []byte `json:"nonce"`
+	Ciphertext []byte `json:"ciphertext"`
+}
+
+// EnvironmentState is everything a principal needs to decrypt an
+// environment. Content is nil until the first push.
+type EnvironmentState struct {
+	ProjectID   string      `json:"project_id"`
+	Environment Environment `json:"environment"`
+	SealedKey   []byte      `json:"sealed_key,omitempty"`
+	Content     *Content    `json:"content,omitempty"`
+}
+
+// PutContentRequest replaces the content. The client encrypts for
+// revision BaseRevision+1 under KeyVersion.
+type PutContentRequest struct {
+	BaseRevision int     `json:"base_revision"`
+	KeyVersion   int     `json:"key_version"`
+	Content      Content `json:"content"`
+}
+
+// Recipient is a principal that currently holds the environment key.
+type Recipient struct {
+	Type      string `json:"type"`
+	ID        string `json:"id"`
+	Label     string `json:"label"`
+	PublicKey []byte `json:"public_key"`
+}
+
+// SealedKey is an environment key sealed to one principal.
+type SealedKey struct {
+	EnvironmentID string `json:"environment_id"`
+	PrincipalType string `json:"principal_type"`
+	PrincipalID   string `json:"principal_id"`
+	KeyVersion    int    `json:"key_version"`
+	SealedKey     []byte `json:"sealed_key"`
+}
+
+// RotateRequest replaces an environment key. Keys must cover exactly the
+// current recipients, and Content (if the environment has content) is
+// re-encrypted for revision BaseRevision+1 under FromKeyVersion+1.
+type RotateRequest struct {
+	FromKeyVersion int         `json:"from_key_version"`
+	BaseRevision   int         `json:"base_revision"`
+	Content        *Content    `json:"content,omitempty"`
+	Keys           []SealedKey `json:"keys"`
+}
+
+// Member is a project member.
+type Member struct {
+	User         User                `json:"user"`
+	Role         string              `json:"role"`
+	ExpiresAt    *time.Time          `json:"expires_at,omitempty"`
+	CreatedAt    time.Time           `json:"created_at"`
+	Environments []MemberEnvironment `json:"environments"`
+}
+
+// MemberEnvironment is one environment a member can (or will) read.
+type MemberEnvironment struct {
+	ID     string `json:"id"`
+	Slug   string `json:"slug"`
+	Access string `json:"access"`
+}
+
+// UpdateMemberRequest changes a role or the membership end date.
+type UpdateMemberRequest struct {
+	Role      string     `json:"role,omitempty"`
+	ExpiresAt *time.Time `json:"expires_at,omitempty"`
+	NoExpiry  bool       `json:"no_expiry,omitempty"`
+}
+
+// ApproveRequest grants pending protected environments to a member.
+type ApproveRequest struct {
+	Keys []SealedKey `json:"keys"`
+}
+
+// CreateInviteRequest invites one provider account. Keys hold the
+// environment keys sealed to the invite's public key, for every
+// unprotected environment in EnvironmentIDs; protected environments are
+// granted later with an approval.
+type CreateInviteRequest struct {
+	ID              string      `json:"id"`
+	Provider        string      `json:"provider"`
+	Handle          string      `json:"handle"`
+	Role            string      `json:"role"`
+	EnvironmentIDs  []string    `json:"environment_ids"`
+	TTLSeconds      int         `json:"ttl_seconds,omitempty"`
+	MemberExpiresAt *time.Time  `json:"member_expires_at,omitempty"`
+	NoExpiry        bool        `json:"no_expiry,omitempty"`
+	PublicKey       []byte      `json:"public_key"`
+	AuthHash        []byte      `json:"auth_hash"`
+	Keys            []SealedKey `json:"keys"`
+}
+
+// Invite describes a pending invite.
+type Invite struct {
+	ID              string              `json:"id"`
+	ProjectID       string              `json:"project_id"`
+	Project         string              `json:"project"` // owner/slug
+	ProjectName     string              `json:"project_name"`
+	Provider        string              `json:"provider"`
+	Handle          string              `json:"handle"`
+	Role            string              `json:"role"`
+	InvitedBy       string              `json:"invited_by"`
+	ExpiresAt       time.Time           `json:"expires_at"`
+	MemberExpiresAt *time.Time          `json:"member_expires_at,omitempty"`
+	Environments    []InviteEnvironment `json:"environments"`
+}
+
+// InviteEnvironment is one environment in an invite. SealedKey is only
+// returned to the invitee and is absent for protected environments.
+type InviteEnvironment struct {
+	ID         string `json:"id"`
+	Slug       string `json:"slug"`
+	Protected  bool   `json:"protected"`
+	KeyVersion int    `json:"key_version"`
+	SealedKey  []byte `json:"sealed_key,omitempty"`
+}
+
+// InviteAuthRequest proves possession of the invite secret.
+type InviteAuthRequest struct {
+	AuthKey []byte `json:"auth_key"`
+}
+
+// AcceptInviteRequest accepts an invite: Keys are the invite's environment
+// keys re-sealed to the invitee's own public key.
+type AcceptInviteRequest struct {
+	AuthKey []byte      `json:"auth_key"`
+	Keys    []SealedKey `json:"keys"`
+}
+
+// CreateTokenRequest creates a read-only service token.
+type CreateTokenRequest struct {
+	ID        string      `json:"id"`
+	Name      string      `json:"name"`
+	ExpiresAt time.Time   `json:"expires_at"`
+	PublicKey []byte      `json:"public_key"`
+	AuthHash  []byte      `json:"auth_hash"`
+	Keys      []SealedKey `json:"keys"`
+}
+
+// Token describes a service token (never its secret).
+type Token struct {
+	ID           string     `json:"id"`
+	Name         string     `json:"name"`
+	CreatedBy    string     `json:"created_by"`
+	CreatedAt    time.Time  `json:"created_at"`
+	ExpiresAt    time.Time  `json:"expires_at"`
+	LastUsedAt   *time.Time `json:"last_used_at,omitempty"`
+	Environments []string   `json:"environments"`
+}
+
+// TokenState is what a service token can read.
+type TokenState struct {
+	Project      Project            `json:"project"`
+	Environments []EnvironmentState `json:"environments"`
+}
+
+// AuditEvent is one audit log entry. It never contains values.
+type AuditEvent struct {
+	Time        time.Time `json:"time"`
+	Actor       string    `json:"actor"`
+	Action      string    `json:"action"`
+	Environment string    `json:"environment,omitempty"`
+	Detail      string    `json:"detail,omitempty"`
+	IP          string    `json:"ip,omitempty"`
+}
+
+// TokenAuthScheme is the Authorization scheme for service tokens:
+// "VenToken <id>.<base64url auth key>".
+const TokenAuthScheme = "VenToken"
