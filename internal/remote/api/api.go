@@ -116,10 +116,13 @@ type Me struct {
 	WrappedPrivateKey *e2e.WrappedPrivateKey `json:"wrapped_private_key,omitempty"`
 }
 
-// SetKeyRequest registers the account key pair. It can only be set once.
+// SetKeyRequest registers the account key pair. Replacing an existing key
+// (Replace, for a forgotten account password) drops every environment key
+// sealed to the old one: admins must share with the user again.
 type SetKeyRequest struct {
 	PublicKey         []byte                `json:"public_key"`
 	WrappedPrivateKey e2e.WrappedPrivateKey `json:"wrapped_private_key"`
+	Replace           bool                  `json:"replace,omitempty"`
 }
 
 // Project is a hosted project as seen by the requesting user.

@@ -375,9 +375,11 @@ func (s *Server) setKey(w http.ResponseWriter, r *http.Request, c *caller) error
 	if err != nil {
 		return err
 	}
-	// Set once: replacing a key would silently cut the user off from every
-	// environment sealed to the old one, and would let a stolen session
-	// swap in an attacker's key.
+	if req.Replace {
+		return s.replaceKey(w, r, c, req.PublicKey, string(blob))
+	}
+	// Set once unless Replace is asked for explicitly: a silent swap would
+	// cut the user off from every environment sealed to the old key.
 	res, err := s.db.ExecContext(r.Context(), `UPDATE users SET public_key = ?, wrapped_private_key = ?, updated_at = ?
 		WHERE id = ? AND public_key IS NULL`, req.PublicKey, string(blob), storage.FormatTime(s.now()), c.user.ID)
 	if err != nil {
@@ -394,6 +396,45 @@ func (s *Server) setKey(w http.ResponseWriter, r *http.Request, c *caller) error
 	}
 	w.WriteHeader(http.StatusNoContent)
 	return nil
+}
+
+// replaceKey installs a new account key and deletes every grant sealed to
+// the old one, active or pending. It never grants access: a stolen session
+// gains nothing by it, and protected environments still need an approval
+// that shows the new fingerprint. Each affected project's audit log records it.
+func (s *Server) replaceKey(w http.ResponseWriter, r *http.Request, c *caller, pub []byte, wrapped string) error {
+	ctx := r.Context()
+	return s.db.WithTx(ctx, func(tx *sql.Tx) error {
+		rows, err := tx.QueryContext(ctx, `SELECT project_id FROM members WHERE user_id = ?`, c.user.ID)
+		if err != nil {
+			return err
+		}
+		var projects []string
+		for rows.Next() {
+			var id string
+			if err := rows.Scan(&id); err != nil {
+				rows.Close()
+				return err
+			}
+			projects = append(projects, id)
+		}
+		rows.Close()
+		// Rotate too: the old key may be the reason for the reset (stolen laptop).
+		if err := revokeGrants(ctx, tx, e2e.PrincipalUser, c.user.ID, "", true); err != nil {
+			return err
+		}
+		if _, err := tx.ExecContext(ctx, `UPDATE users SET public_key = ?, wrapped_private_key = ?, updated_at = ? WHERE id = ?`,
+			pub, wrapped, storage.FormatTime(s.now()), c.user.ID); err != nil {
+			return err
+		}
+		for _, p := range projects {
+			if err := s.audit(ctx, tx, c, p, "member.key_reset", "", "new fingerprint "+e2e.Fingerprint(pub)); err != nil {
+				return err
+			}
+		}
+		w.WriteHeader(http.StatusNoContent)
+		return nil
+	})
 }
 
 func truncateString(s string, n int) string {

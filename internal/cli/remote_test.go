@@ -405,3 +405,45 @@ func TestParseTTL(t *testing.T) {
 		}
 	}
 }
+
+func TestHostedAccountKeyReset(t *testing.T) {
+	re := newRemoteEnv(t)
+	alice, bob := re.person("alice"), re.person("bob")
+	re.login(alice)
+	re.login(bob)
+	alice.must("", "remote", "create", "api", "--envs", "development")
+	src := filepath.Join(t.TempDir(), "in.env")
+	os.WriteFile(src, []byte("TOKEN=dummy-reset\n"), 0o600)
+	alice.withPW("push", "-p", "api", "-e", "development", "--from", src, "--yes")
+	code := strings.TrimSpace(alice.withPW("share", "-p", "api", "--to", "bob", "--env", "development").stdout)
+	bob.must("", "join", code, "--yes")
+	oldFP := bob.must("", "whoami").stdout
+
+	// Bob forgot his account password.
+	re.gh.next = "bob"
+	if r := bob.run(nil, "new password for bob\n", "--password-stdin", "login", "--reset-key"); r.code != ExitInputNeeded {
+		t.Fatalf("reset without confirmation: %d %s", r.code, r.stderr)
+	}
+	re.gh.next = "bob"
+	bob.pw = "new password for bob"
+	bob.withPW("login", "--reset-key", "--yes")
+	if bob.must("", "whoami").stdout == oldFP {
+		t.Fatal("fingerprint did not change")
+	}
+	if r := bob.tryPW("pull", "-p", "alice/api", "-e", "development", "--stdout"); r.code != ExitAuth {
+		t.Fatalf("access survived a key reset: %d %s", r.code, r.stderr)
+	}
+
+	// Alice's next pull rotates the key; re-sharing restores bob's access.
+	if r := alice.withPW("pull", "-p", "api", "-e", "development", "--stdout"); !strings.Contains(r.stderr, "Rotated the key") {
+		t.Fatalf("no rotation after reset: %s", r.stderr)
+	}
+	code = strings.TrimSpace(alice.withPW("share", "-p", "api", "--to", "bob", "--env", "development").stdout)
+	bob.must("", "join", code, "--yes")
+	if r := bob.withPW("pull", "-p", "alice/api", "-e", "development", "--stdout"); parseDotenv(t, r.stdout)["TOKEN"] != "dummy-reset" {
+		t.Fatalf("pull after re-share: %q", r.stdout)
+	}
+	if r := alice.must("", "audit", "-p", "api"); !strings.Contains(r.stdout, "member.key_reset") {
+		t.Fatalf("audit: %s", r.stdout)
+	}
+}

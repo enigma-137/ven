@@ -1,5 +1,7 @@
 # VEN
 
+**Docs: [ven.traceiq.run/docs](https://ven.traceiq.run/docs/)**
+
 VEN is an open-source, local vault for environment variables. It lets you import, organize,
 edit, copy and export `.env` values across projects and environments, from a Go CLI or a
 local web dashboard. Both use the same Go services, database layer, dotenv parser and
@@ -35,13 +37,13 @@ Licensed under the [Apache License 2.0](LICENSE).
 **Linux / macOS:**
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/enigma-137/ven/HEAD/scripts/install.sh | sh
+curl -fsSL https://ven.traceiq.run/install.sh | sh
 ```
 
 **Windows (PowerShell):**
 
 ```powershell
-irm https://raw.githubusercontent.com/enigma-137/ven/HEAD/scripts/install.ps1 | iex
+irm https://ven.traceiq.run/install.ps1 | iex
 ```
 
 Both scripts download the latest [release](https://github.com/enigma-137/ven/releases/latest),

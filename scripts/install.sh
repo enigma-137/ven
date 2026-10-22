@@ -1,6 +1,6 @@
 #!/bin/sh
 # Install the latest VEN release on Linux or macOS:
-#   curl -fsSL https://raw.githubusercontent.com/enigma-137/ven/HEAD/scripts/install.sh | sh
+#   curl -fsSL https://ven.traceiq.run/install.sh | sh
 # Options (environment): VEN_VERSION=v0.2.0 to pin a version,
 # VEN_INSTALL_DIR=/usr/local/bin to change where ven goes (default ~/.local/bin).
 set -eu

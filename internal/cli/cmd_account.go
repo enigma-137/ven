@@ -24,6 +24,10 @@ const (
 	EnvToken  = "VEN_TOKEN"  // service token (ven_st_...) for CI and servers
 )
 
+// DefaultServer is the public VEN server used by ven login when no other
+// server is given. Self-hosted teams pass --server or set $VEN_SERVER.
+const DefaultServer = "https://ven.traceiq.run"
+
 // accountPath is account.json next to the vault, so --vault and $VEN_VAULT
 // also isolate the login (handy for tests and multiple identities).
 func (c *cli) accountPath() (string, error) {
@@ -150,7 +154,7 @@ func (c *cli) unlockAccount(ctx context.Context, cl *client.Client) (*api.Me, *e
 
 func (c *cli) loginCommand() *cobra.Command {
 	var server string
-	var noBrowser bool
+	var noBrowser, resetKey, yes bool
 	cmd := &cobra.Command{
 		Use:   "login",
 		Short: "Log in to a VEN server with GitHub",
@@ -162,8 +166,8 @@ only tells VEN who you are; VEN asks for no GitHub permissions.
 The first time, you also choose an account password. It protects your
 account key, which is what decrypts shared environments. It never leaves
 this machine, and neither VEN nor GitHub can reset it.`,
-		Example: `  ven login --server https://ven.example.com
-  ven login                                    # same server as last time`,
+		Example: `  ven login                                    # the public server, or the last one used
+  ven login --server https://ven.example.com   # a self-hosted server`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
@@ -182,7 +186,7 @@ this machine, and neither VEN nor GitHub can reset it.`,
 				server = acc.Server
 			}
 			if server == "" {
-				return usageErr("pass --server https://your-ven-server (or set %s)", EnvServer)
+				server = DefaultServer
 			}
 			if server, err = client.CheckServerURL(server); err != nil {
 				return usageErr("%v", err)
@@ -234,13 +238,30 @@ this machine, and neither VEN nor GitHub can reset it.`,
 			if err != nil {
 				return remoteErr(err)
 			}
-			if me.PublicKey != nil {
+			if me.PublicKey != nil && !resetKey {
 				c.infof("Account key fingerprint: %s", e2e.Fingerprint(me.PublicKey))
 				return nil
 			}
+			replace := me.PublicKey != nil
+			if replace {
+				c.warnf("resetting your account key removes your access to every shared environment.")
+				c.infof("Your memberships stay; project admins must share each environment with you again.")
+				if !yes {
+					if !c.env.Term.Interactive() {
+						return needInput("pass --yes to reset your account key")
+					}
+					ans, err := c.env.Term.ReadLine("Type reset to continue: ")
+					if err != nil {
+						return err
+					}
+					if strings.TrimSpace(ans) != "reset" {
+						return ErrCancelled
+					}
+				}
+			}
 			c.infof("")
-			c.infof("Set up your account password. It encrypts your account key and cannot be")
-			c.infof("reset by anyone: if you lose it you must be re-invited to every project.")
+			c.infof("Set up your account password. It encrypts your account key and nobody can")
+			c.infof("recover it; if you lose it, run ven login --reset-key and get re-shared.")
 			pw, err := c.readNewPassword("Account password")
 			if err != nil {
 				return err
@@ -254,15 +275,20 @@ this machine, and neither VEN nor GitHub can reset it.`,
 			if err != nil {
 				return err
 			}
-			if err := cl.SetKey(ctx, api.SetKeyRequest{PublicKey: priv.PublicKey().Bytes(), WrappedPrivateKey: *wk}); err != nil {
+			if err := cl.SetKey(ctx, api.SetKeyRequest{PublicKey: priv.PublicKey().Bytes(), WrappedPrivateKey: *wk, Replace: replace}); err != nil {
 				return remoteErr(err)
 			}
 			c.successf("Account key created. Fingerprint: %s", e2e.Fingerprint(priv.PublicKey().Bytes()))
+			if replace {
+				c.infof("Ask your project admins to share with you again (ven share --to %s).", me.Handle)
+			}
 			return nil
 		},
 	}
-	cmd.Flags().StringVar(&server, "server", "", "VEN server URL (default: $VEN_SERVER or the last server used)")
+	cmd.Flags().StringVar(&server, "server", "", "VEN server URL (default: $VEN_SERVER, the last server used, or https://ven.traceiq.run)")
 	cmd.Flags().BoolVar(&noBrowser, "no-browser", false, "do not try to open a browser")
+	cmd.Flags().BoolVar(&resetKey, "reset-key", false, "replace your account key (forgotten account password); you lose access until re-shared")
+	cmd.Flags().BoolVarP(&yes, "yes", "y", false, "with --reset-key: skip the confirmation")
 	return cmd
 }
 
