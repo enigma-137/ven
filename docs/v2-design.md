@@ -12,7 +12,7 @@ compromised server on its own never exposes a secret.**
 
 | | Job | What it protects against |
 | --- | --- | --- |
-| **GitHub login** (OAuth) | Proves *who you are* to the VEN server: which account, which projects, which role. No VEN passwords to store, reset or leak; GitHub's own 2FA applies. | Someone using your invite or token without being you. |
+| **GitHub or Google login** (OAuth) | Proves *who you are* to the VEN server: which account, which projects, which role. No VEN passwords to store, reset or leak; GitHub's own 2FA applies. | Someone using your invite or token without being you. |
 | **Master password** (as in V1) | Unlocks *your private key*, which is what actually decrypts values. Never leaves your machine. | A stolen GitHub session, a stolen laptop disk, or a breached VEN server. |
 
 GitHub alone is not enough: if the server could decrypt values for anyone with a valid GitHub
@@ -54,7 +54,7 @@ made safe against the key leaking:
 
 ```bash
 # Owner
-ven share billing-api --to octocat --env development,staging --role developer --expires 30d
+ven share billing-api --to octocat --env development,staging --role developer   # access lasts 30 days by default
 #   ✓ Invite for @octocat (expires in 24 h, single use):
 #     ven_inv_8f2c…        ← send this over Slack, email, whatever
 
@@ -75,10 +75,10 @@ What makes the invite code safe to paste into chat:
    server stores a hash of the `id` to find it. On `ven join`, the teammate's CLI unwraps the
    environment keys with `secret`, re-wraps them to the teammate's own public key, and the
    server deletes the invite blob. The server alone can never open it.
-4. **Access itself expires.** `--expires 30d` sets an end date on the membership, not just the
-   invite. After that the server stops serving ciphertext and VEN rotates the keys.
+4. **Access itself expires.** Memberships last 30 days by default (`--expires` to change,
+   `ven members renew` to extend), separate from the invite's own 24 h limit. After that the server stops serving ciphertext and VEN rotates the keys.
 
-Optional, for "very tight" teams: `--approve` makes the owner confirm the join
+Required for `production`, optional elsewhere (`--approve`): the owner confirms the join
 (`ven members approve octocat`) and shows both sides a short key fingerprint to compare, which
 defends against a compromised server substituting its own public key.
 
@@ -166,18 +166,19 @@ its environments under new keys) so you can start sharing it.
 
 ## 9. Suggested build order
 
-1. **Server skeleton** (`ven server`, Postgres) + GitHub login with the device flow for the CLI
-   and normal OAuth for the dashboard.
+1. **Server skeleton** (`ven server`, SQLite) + GitHub login with the device flow for the CLI
+   and normal OAuth for the dashboard. Google login follows the same interface.
 2. **User keys**: key pair at first login, wrapped private key, second-device login.
 3. **Hosted projects**: publish, pull, push, `ven link`, `ven run`, `ven env`, `ven copy`.
 4. **Sharing**: invites, join, roles, expiry, revoke + key rotation, audit log.
 5. **Service tokens** and a GitHub Actions example.
 6. Dashboard pages for members, invites, tokens and audit; then external review.
 
-## 10. Decisions needed from you
+## 10. Decisions
 
-1. **Hosting**: do we run one hosted VEN service, or ship `ven server` for teams to self-host
-   (or both)? This changes how much we invest in billing, abuse limits and ops.
-2. **Login providers**: GitHub only at first, or also GitLab/Google/email later?
-3. **Default membership expiry**: none (until removed), or always required (e.g. 90 days, renewable)?
-4. **Fingerprint check (§3 `--approve`)**: optional, or mandatory for `production` access?
+| # | Question | Decision | Why |
+| --- | --- | --- | --- |
+| 1 | Hosting | **`ven server` is part of the same binary and anyone can self-host it. We run one small hosted instance ourselves.** The server uses **SQLite** (as in V1), not Postgres, until load proves otherwise. | The server only stores ciphertext and membership, so it is light: one small VPS (a few dollars a month) or a free/low tier on a container host is enough to start. Self-hosting costs us nothing and lets security-minded teams keep data in-house. Billing, if ever, comes later. |
+| 2 | Login providers | **GitHub first, Google second.** GitLab only if users ask. | GitHub covers most developers. Google covers everyone else, and its basic `openid email profile` sign-in needs no paid verification and supports a terminal flow. Invites are bound to a GitHub username or a Google email address. |
+| 3 | Membership expiry | **30 days by default, renewable** (`ven members renew octocat --for 30d`). `--expires never` must be stated explicitly and is admin-only. Service tokens: 90 days by default, 1 year maximum. | Forgotten access ends on its own. Renewing is one command, and VEN warns owners 5 days before expiry. |
+| 4 | Fingerprint check | **Required for `production` environments, optional elsewhere.** | Production is where a swapped key would hurt most. Comparing a 6-word code once per teammate is cheap. It is CLI code only, with no running cost. |
