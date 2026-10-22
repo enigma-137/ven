@@ -27,6 +27,8 @@ encryption code.
   [security model](docs/security.md) · [roadmap](ROADMAP.md) · [contributing](CONTRIBUTING.md) ·
   [reporting vulnerabilities](SECURITY.md) · [licensing](LICENSING.md)
 
+Licensed under the [Apache License 2.0](LICENSE).
+
 ## Install and build
 
 Requirements: Go 1.26+ and Node.js 20.19+ or 22.12+ (Node is only needed to build the dashboard). No C

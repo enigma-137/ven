@@ -1,0 +1,8 @@
+# Normalize text files to LF in the repository and working tree.
+* text=auto eol=lf
+
+# PowerShell scripts are friendlier with CRLF on Windows.
+*.ps1 text eol=crlf
+
+*.png binary
+*.ico binary
