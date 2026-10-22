@@ -16,7 +16,7 @@ encryption code.
 
 ## Contents
 
-- [Install and build](#install-and-build)
+- [Install](#install) · [Build from source](#build-from-source)
 - [Quick start](#quick-start)
 - [CLI reference](#cli-reference)
 - [Dashboard](#dashboard)
@@ -30,7 +30,36 @@ encryption code.
 
 Licensed under the [Apache License 2.0](LICENSE).
 
-## Install and build
+## Install
+
+**Linux / macOS:**
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/enigma-137/ven/HEAD/scripts/install.sh | sh
+```
+
+**Windows (PowerShell):**
+
+```powershell
+irm https://raw.githubusercontent.com/enigma-137/ven/HEAD/scripts/install.ps1 | iex
+```
+
+Both scripts download the latest [release](https://github.com/enigma-137/ven/releases/latest),
+check its SHA-256 checksum and install `ven` to `~/.local/bin` (Windows:
+`%LOCALAPPDATA%\Programs\ven`, added to your PATH). You can also download an archive from the
+releases page yourself. The binaries are not code-signed yet, so Windows SmartScreen may warn on
+first run, and macOS may block an archive opened in Finder (the install script avoids that).
+
+### Releasing
+
+Push a version tag; GitHub Actions tests, builds Linux/macOS/Windows (amd64 and arm64) with the
+dashboard embedded, and publishes the release with checksums:
+
+```bash
+git tag v0.2.0 && git push origin v0.2.0
+```
+
+## Build from source
 
 Requirements: Go 1.26+ and Node.js 20.19+ or 22.12+ (Node is only needed to build the dashboard). No C
 compiler is needed; the SQLite driver is pure Go.

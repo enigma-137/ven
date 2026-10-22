@@ -32,9 +32,23 @@ GitHub → Settings → Developer settings → **OAuth Apps** → **New OAuth Ap
 Click **Register application** and copy the **Client ID**. VEN needs **no client secret**
 and asks GitHub for **no scopes**: it only reads your public profile to learn who you are.
 
-## 3. Build the Linux binary
+## 3. Get the Linux binary
 
-On your Windows machine, in the repository (PowerShell):
+Once a release exists (see "Releasing" in the main README), download it straight on the VPS:
+
+```bash
+ssh traceiq@162.35.112.175
+cd ~/ven
+V=v0.2.0   # the release tag
+curl -fsSLO https://github.com/enigma-137/ven/releases/download/$V/ven_${V#v}_linux_amd64.tar.gz
+curl -fsSLO https://github.com/enigma-137/ven/releases/download/$V/SHA256SUMS
+sha256sum --ignore-missing -c SHA256SUMS && tar -xzf ven_${V#v}_linux_amd64.tar.gz
+mv ven_${V#v}_linux_amd64/ven ./ven && rm -rf ven_${V#v}_linux_amd64* SHA256SUMS
+exit
+scp deploy/ven.service deploy/env.example deploy/backup.sh traceiq@162.35.112.175:/home/traceiq/ven/
+```
+
+Or build it yourself on your Windows machine, in the repository (PowerShell):
 
 ```powershell
 $env:GOOS="linux"; $env:GOARCH="amd64"; $env:CGO_ENABLED="0"
