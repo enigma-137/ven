@@ -1,0 +1,43 @@
+# systemd unit for the VEN server on the shared VPS.
+# Install: sudo cp deploy/ven.service /etc/systemd/system/ven.service
+#          sudo systemctl daemon-reload && sudo systemctl enable --now ven
+[Unit]
+Description=VEN server (hosted env-var sharing)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=traceiq
+Group=traceiq
+WorkingDirectory=/home/traceiq/ven
+# VEN_GITHUB_CLIENT_ID and friends live here (0600, never in git).
+EnvironmentFile=/home/traceiq/ven/env
+ExecStart=/home/traceiq/ven/ven server --quiet
+Restart=on-failure
+RestartSec=5
+
+# Keep VEN from ever starving TraceIQ.
+MemoryMax=256M
+CPUQuota=50%
+TasksMax=64
+
+# Hardening: VEN only needs to write its database directory.
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/traceiq/ven/data
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictNamespaces=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+SystemCallArchitectures=native
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

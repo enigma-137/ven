@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"os/signal"
 	"strings"
@@ -93,6 +94,11 @@ type cli struct {
 	opts options
 	// kdf overrides Argon2id parameters (tests only).
 	kdf *vault.KDFParams
+	// httpClient, sleep and clipboard replace network, timers and the
+	// system clipboard (tests only).
+	httpClient *http.Client
+	sleep      func(ctx context.Context, d time.Duration) error
+	clipboard  func([]byte) error
 
 	app *app.App
 }
@@ -114,7 +120,10 @@ func (c *cli) run(ctx context.Context, args []string) int {
 		c.app.Close()
 	}
 	if err != nil {
-		fmt.Fprintf(c.env.Err, "%s %s\n", c.color(colorRed, "error:"), err)
+		var q quietError
+		if !errors.As(err, &q) {
+			fmt.Fprintf(c.env.Err, "%s %s\n", c.color(colorRed, "error:"), err)
+		}
 		return exitCode(err)
 	}
 	return ExitOK
@@ -154,7 +163,10 @@ your master password (Argon2id). There is no password recovery in V1.
 Each command that reads or writes values asks for the master password;
 there is no background unlock daemon. Metadata commands (listing projects,
 environments and variable names) work without the password because names
-are stored unencrypted.`,
+are stored unencrypted.
+
+Optional (V2 preview): share projects with a team through a VEN server,
+end-to-end encrypted. Start with 'ven login --help'.`,
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
@@ -169,7 +181,7 @@ are stored unencrypted.`,
 	pf.StringVar(&c.opts.vaultPath, "vault", "", "path to the vault database (default: $VEN_VAULT or the user data directory)")
 	pf.BoolVar(&c.opts.nonInteractive, "non-interactive", false, "never prompt; fail if input is required")
 	pf.BoolVar(&c.opts.noColor, "no-color", false, "disable terminal colors (also honours NO_COLOR)")
-	pf.BoolVar(&c.opts.passwordStdin, "password-stdin", false, "read the master password from the first line of stdin")
+	pf.BoolVar(&c.opts.passwordStdin, "password-stdin", false, "read the master (or account) password from the first line of stdin")
 
 	root.AddCommand(
 		c.initCommand(),
@@ -185,6 +197,24 @@ are stored unencrypted.`,
 		c.passwordCommand(),
 		c.uiCommand(),
 		c.versionCommand(),
+		// Hosted projects (V2).
+		c.loginCommand(),
+		c.logoutCommand(),
+		c.whoamiCommand(),
+		c.remoteCommand(),
+		c.linkCommand(),
+		c.pullCommand(),
+		c.pushCommand(),
+		c.runCommand(),
+		c.envCommand(),
+		c.copyCommand(),
+		c.shareCommand(),
+		c.joinCommand(),
+		c.membersCommand(),
+		c.invitesCommand(),
+		c.tokensCommand(),
+		c.auditCommand(),
+		c.serverCommand(),
 	)
 	return root
 }

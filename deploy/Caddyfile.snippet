@@ -1,0 +1,12 @@
+# Add this block to the existing Caddyfile (next to TraceIQ's site, not
+# replacing it), change the domain, then: sudo systemctl reload caddy
+ven.traceiq.run {
+	reverse_proxy 127.0.0.1:4100
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		-Server
+	}
+	request_body {
+		max_size 5MB
+	}
+}

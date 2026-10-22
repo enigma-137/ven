@@ -20,6 +20,12 @@ internal/variables           encrypted variables, key-name classification, impor
 internal/envfile             dotenv parser, canonical serializer, atomic 0600 file writer
 internal/domain              validation errors, slugs, name rules
 internal/storage             SQLite connection (pragmas, txlock), versioned migrations, row queries
+
+V2 preview (hosted sharing):
+internal/e2e                 end-to-end crypto: X25519 sealing, environment keys, account key wrap, invite/token secrets
+internal/remote/api          JSON types shared by client and server
+internal/remote/server       `ven server`: GitHub device login, sessions, projects, grants, invites, tokens, audit (own SQLite schema)
+internal/remote/client       HTTP client and the saved login (account.json)
 ```
 
 ## Data flow

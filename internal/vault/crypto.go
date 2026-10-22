@@ -69,6 +69,25 @@ func deriveWrappingKey(password, salt []byte, p KDFParams) []byte {
 	return argon2.IDKey(password, salt, p.Iterations, p.Memory, p.Parallelism, KeySize)
 }
 
+// DeriveKey derives a 256-bit wrapping key from password with Argon2id.
+// Callers must Validate p first when it comes from untrusted storage.
+func DeriveKey(password, salt []byte, p KDFParams) []byte {
+	return deriveWrappingKey(password, salt, p)
+}
+
+// RandomBytes returns n bytes from crypto/rand.
+func RandomBytes(n int) ([]byte, error) { return randomBytes(n) }
+
+// Encrypt seals plaintext with AES-256-GCM under key and a fresh random nonce.
+func Encrypt(key, plaintext, aad []byte) (nonce, ciphertext []byte, err error) {
+	return seal(key, plaintext, aad)
+}
+
+// Decrypt opens an AES-256-GCM ciphertext; any failure is ErrDecrypt.
+func Decrypt(key, nonce, ciphertext, aad []byte) ([]byte, error) {
+	return open(key, nonce, ciphertext, aad)
+}
+
 func randomBytes(n int) ([]byte, error) {
 	b := make([]byte, n)
 	if _, err := rand.Read(b); err != nil {
@@ -115,46 +134,49 @@ func open(key, nonce, ciphertext, aad []byte) ([]byte, error) {
 	return pt, nil
 }
 
-// aadBuilder produces unambiguous associated data: a fixed context label
+// AAD produces unambiguous associated data: a fixed context label
 // followed by length-prefixed fields.
-type aadBuilder []byte
+type AAD []byte
 
-func newAAD(label string) aadBuilder {
-	return aadBuilder(label).str("")
+// NewAAD starts associated data with a context label.
+func NewAAD(label string) AAD {
+	return AAD(label).Str("")
 }
 
-func (a aadBuilder) str(s string) aadBuilder {
+// Str appends a length-prefixed string.
+func (a AAD) Str(s string) AAD {
 	a = binary.BigEndian.AppendUint32(a, uint32(len(s)))
 	return append(a, s...)
 }
 
-func (a aadBuilder) u32(v uint32) aadBuilder {
+// U32 appends a big-endian uint32.
+func (a AAD) U32(v uint32) AAD {
 	return binary.BigEndian.AppendUint32(a, v)
 }
 
 // wrappedKeyAAD binds the wrapped vault key to the vault ID, format version
 // and KDF parameters, so tampering with stored metadata fails authentication.
 func wrappedKeyAAD(vaultID string, formatVersion, kdfVersion int, p KDFParams, salt []byte) []byte {
-	return newAAD("ven/vault-key").
-		u32(uint32(formatVersion)).
-		str(vaultID).
-		str("argon2id").
-		u32(uint32(kdfVersion)).
-		u32(p.Memory).
-		u32(p.Iterations).
-		u32(uint32(p.Parallelism)).
-		str(string(salt))
+	return NewAAD("ven/vault-key").
+		U32(uint32(formatVersion)).
+		Str(vaultID).
+		Str("argon2id").
+		U32(uint32(kdfVersion)).
+		U32(p.Memory).
+		U32(p.Iterations).
+		U32(uint32(p.Parallelism)).
+		Str(string(salt))
 }
 
 // ValueAAD binds an encrypted variable value to its vault, project,
 // environment and variable record.
 func ValueAAD(encVersion int, vaultID, projectID, environmentID, variableID string) []byte {
-	return newAAD("ven/variable-value").
-		u32(uint32(encVersion)).
-		str(vaultID).
-		str(projectID).
-		str(environmentID).
-		str(variableID)
+	return NewAAD("ven/variable-value").
+		U32(uint32(encVersion)).
+		Str(vaultID).
+		Str(projectID).
+		Str(environmentID).
+		Str(variableID)
 }
 
 // Wipe overwrites b with zeros. Best effort: the Go runtime may already have

@@ -16,10 +16,11 @@ encryption code.
 
 ## Contents
 
-- [Install and build](#install-and-build)
+- [Install](#install) · [Build from source](#build-from-source)
 - [Quick start](#quick-start)
 - [CLI reference](#cli-reference)
 - [Dashboard](#dashboard)
+- [Hosted projects and teams (V2 preview)](#hosted-projects-and-teams-v2-preview)
 - [Where data lives](#where-data-lives)
 - [Development](#development)
 - [Dependencies](#dependencies)
@@ -29,7 +30,36 @@ encryption code.
 
 Licensed under the [Apache License 2.0](LICENSE).
 
-## Install and build
+## Install
+
+**Linux / macOS:**
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/enigma-137/ven/HEAD/scripts/install.sh | sh
+```
+
+**Windows (PowerShell):**
+
+```powershell
+irm https://raw.githubusercontent.com/enigma-137/ven/HEAD/scripts/install.ps1 | iex
+```
+
+Both scripts download the latest [release](https://github.com/enigma-137/ven/releases/latest),
+check its SHA-256 checksum and install `ven` to `~/.local/bin` (Windows:
+`%LOCALAPPDATA%\Programs\ven`, added to your PATH). You can also download an archive from the
+releases page yourself. The binaries are not code-signed yet, so Windows SmartScreen may warn on
+first run, and macOS may block an archive opened in Finder (the install script avoids that).
+
+### Releasing
+
+Push a version tag; GitHub Actions tests, builds Linux/macOS/Windows (amd64 and arm64) with the
+dashboard embedded, and publishes the release with checksums:
+
+```bash
+git tag v0.2.0 && git push origin v0.2.0
+```
+
+## Build from source
 
 Requirements: Go 1.26+ and Node.js 20.19+ or 22.12+ (Node is only needed to build the dashboard). No C
 compiler is needed; the SQLite driver is pure Go.
@@ -151,6 +181,57 @@ export download and settings (vault location, auto-lock interval, password chang
 The dashboard auto-locks after inactivity (default 15 minutes, configurable) and when the
 server stops. Stop it with Ctrl+C.
 
+## Hosted projects and teams (V2 preview)
+
+> **Preview, unreviewed.** Everything above works offline without an account. The commands
+> below are optional and talk to a VEN server (`ven server`, self-hostable; see
+> [deploy/README.md](deploy/README.md)). Design and threat model: [docs/v2-design.md](docs/v2-design.md).
+
+Hosted projects are **end-to-end encrypted**: values are encrypted on your machine, the server
+stores only ciphertext and cannot read values, variable names, private keys or invite secrets.
+GitHub login says *who you are*; your **account password** unlocks your key and never leaves
+your machine.
+
+```bash
+ven login --server https://ven.example.com     # GitHub device login; first time: choose an account password
+ven remote create "Billing API"                # owner/billing-api with development, staging, production
+ven link billing-api -e development            # writes .ven.json (no secrets)
+ven push --from .env                           # encrypt and upload (shows added/changed/removed keys)
+ven pull                                       # decrypt into .env
+ven run -- npm run dev                         # inject variables into one process, nothing on disk
+eval "$(ven shellenv)"                         # export into the current shell (PowerShell: ven shellenv | iex)
+ven copy STRIPE_SECRET_KEY                     # one value to the clipboard
+```
+
+Sharing with a teammate:
+
+```bash
+ven share --to octocat --env development,staging --role developer   # prints a ven_inv_… code
+#   teammate:  ven login && ven join ven_inv_…
+ven members                                    # who has access, until when
+ven members approve octocat                    # grant a protected env (production) after comparing fingerprints
+ven members renew octocat --for 30d            # access expires after 30 days by default
+ven members remove octocat --yes               # revoke and rotate the keys they had
+ven tokens create --name ci --env production   # read-only token: VEN_SERVER=… VEN_TOKEN=ven_st_… ven run -- ./deploy.sh
+ven audit                                      # who pulled, pushed, shared, approved
+```
+
+An invite code only works for the named GitHub account, only once, and expires after 24 hours.
+Production-like environments are **protected**: the code alone never unlocks them.
+
+| Command | Description |
+| --- | --- |
+| `ven login [--server URL]` / `logout` / `whoami` | Log in with GitHub, revoke the session, show your key fingerprint. |
+| `ven remote list\|create\|publish\|envs create\|rotate\|delete` | Manage hosted projects; `publish` uploads a local project. |
+| `ven link <project> -e <env>` | Remember the project/environment for this directory. |
+| `ven pull [--out f] [--stdout]` / `push [--from f] [--merge]` | Download/upload an environment. |
+| `ven run -- <cmd>` / `shellenv [--shell posix\|fish\|powershell]` / `copy [KEY]` | Use variables without a file. |
+| `ven share` / `join` / `invites [revoke]` | Invite people, accept invites, manage pending ones. |
+| `ven members [remove\|renew\|role\|approve]` | Manage access. |
+| `ven tokens [create\|revoke]` | Read-only service tokens for CI and servers. |
+| `ven audit` | Project audit log (admins). |
+| `ven server` | Run the server (see [deploy/README.md](deploy/README.md)). |
+
 ## Where data lives
 
 | OS | Default vault |
@@ -158,6 +239,8 @@ server stops. Stop it with Ctrl+C.
 | Windows | `%AppData%\VEN\vault.db` |
 | macOS | `~/Library/Application Support/VEN/vault.db` |
 | Linux | `$XDG_DATA_HOME/ven/vault.db` or `~/.local/share/ven/vault.db` |
+
+If you use hosted projects, the login is kept in `account.json` (0600) in the same directory.
 
 Override with `--vault` or `VEN_VAULT`. Back up the `.db` file (and its `-wal` file if
 present, or stop VEN first). A backup is only useful with the master password.
