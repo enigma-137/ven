@@ -371,6 +371,9 @@ func (s *Server) setKey(w http.ResponseWriter, r *http.Request, c *caller) error
 	if err := wk.Params().Validate(); err != nil {
 		return invalid("wrapped_private_key: %v", err)
 	}
+	if rw := wk.Recovery; rw != nil && (len(rw.Salt) != 16 || len(rw.Nonce) != 12 || len(rw.Ciphertext) != e2e.KeySize+16) {
+		return invalid("wrapped_private_key.recovery is malformed")
+	}
 	blob, err := json.Marshal(wk)
 	if err != nil {
 		return err
@@ -389,6 +392,13 @@ func (s *Server) setKey(w http.ResponseWriter, r *http.Request, c *caller) error
 		var existing []byte
 		_ = s.db.QueryRowContext(r.Context(), `SELECT public_key FROM users WHERE id = ?`, c.user.ID).Scan(&existing)
 		if bytes.Equal(existing, req.PublicKey) {
+			// Same key, new wrapping (new account password or recovery key).
+			// Nobody can produce a valid wrap of this key without already
+			// holding it, so this cannot grant access to anything.
+			if _, err := s.db.ExecContext(r.Context(), `UPDATE users SET wrapped_private_key = ?, updated_at = ? WHERE id = ?`,
+				string(blob), storage.FormatTime(s.now()), c.user.ID); err != nil {
+				return err
+			}
 			w.WriteHeader(http.StatusNoContent)
 			return nil
 		}

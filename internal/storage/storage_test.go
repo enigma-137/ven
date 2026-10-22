@@ -3,6 +3,7 @@ package storage
 import (
 	"context"
 	"errors"
+	"io/fs"
 	"path/filepath"
 	"testing"
 )
@@ -31,8 +32,14 @@ func TestMigrationsAreIdempotent(t *testing.T) {
 	}
 	defer db.Close()
 	v2, _ := db.SchemaVersion(context.Background())
-	if v1 != 1 || v2 != 1 {
-		t.Fatalf("schema versions = %d, %d; want 1, 1", v1, v2)
+	sub, _ := fs.Sub(migrationFS, "migrations")
+	all, err := loadMigrations(sub)
+	if err != nil {
+		t.Fatal(err)
+	}
+	latest := all[len(all)-1].version
+	if v1 != latest || v2 != latest {
+		t.Fatalf("schema versions = %d, %d; want %d, %d", v1, v2, latest, latest)
 	}
 }
 

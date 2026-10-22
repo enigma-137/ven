@@ -100,8 +100,11 @@ func TestInitAndStatus(t *testing.T) {
 	// Mismatched confirmation is retried.
 	term := &fakeTerm{interactive: true, passwords: []string{masterPW, "different password", masterPW, masterPW}}
 	r = h.mustRun(term, "", "init")
-	if !strings.Contains(r.stderr, "no password recovery") || !strings.Contains(r.stderr, "do not match") {
+	if !strings.Contains(r.stderr, "recovery key") || !strings.Contains(r.stderr, "do not match") {
 		t.Fatalf("init stderr: %s", r.stderr)
+	}
+	if !strings.HasPrefix(r.stdout, "VENR-") {
+		t.Fatalf("init stdout should carry the recovery key: %q", r.stdout)
 	}
 	if r := h.run(&fakeTerm{interactive: true, passwords: []string{masterPW, masterPW}}, "", "init"); r.code != ExitConflict {
 		t.Fatalf("second init exit = %d", r.code)
@@ -353,5 +356,41 @@ func TestProjectAndEnvironmentManagement(t *testing.T) {
 func TestExitCodeMapping(t *testing.T) {
 	if exitCode(errors.New("x")) != ExitError || exitCode(vault.ErrIncorrectPassword) != ExitAuth || exitCode(ErrCancelled) != ExitCancelled {
 		t.Fatal("unexpected exit code mapping")
+	}
+}
+
+func TestRecoveryKeyReset(t *testing.T) {
+	h := newHarness(t)
+	r := h.mustRun(&fakeTerm{interactive: true, passwords: []string{masterPW, masterPW}}, "", "init")
+	rk := strings.TrimSpace(r.stdout)
+	if r := h.mustRun(nil, "", "status"); !strings.Contains(r.stdout, "Recovery key: set") {
+		t.Fatalf("status: %s", r.stdout)
+	}
+	h.mustRun(nil, "", "projects", "create", "api")
+	h.mustRun(nil, masterPW+"\ndummy-value\n", "--password-stdin", "set", "TOKEN", "-p", "api", "-e", "development", "--value-stdin")
+
+	if r := h.run(nil, "VENR-WRONG\nnew master password\n", "--password-stdin", "password", "reset"); r.code != ExitUsage {
+		t.Fatalf("malformed key: %d %s", r.code, r.stderr)
+	}
+	h.mustRun(nil, rk+"\nnew master password\n", "--password-stdin", "password", "reset")
+	if r := h.run(nil, masterPW+"\n", "--password-stdin", "get", "TOKEN", "-p", "api", "-e", "development"); r.code != ExitAuth {
+		t.Fatalf("old password still works: %d", r.code)
+	}
+	r = h.mustRun(nil, "new master password\n", "--password-stdin", "get", "TOKEN", "-p", "api", "-e", "development")
+	if r.stdout != "dummy-value" {
+		t.Fatalf("value after reset: %q", r.stdout)
+	}
+
+	// A new recovery key replaces the old one.
+	if r := h.run(nil, "new master password\n", "--password-stdin", "password", "recovery-key"); r.code != ExitInputNeeded {
+		t.Fatalf("replace without --yes: %d", r.code)
+	}
+	r = h.mustRun(nil, "new master password\n", "--password-stdin", "password", "recovery-key", "--yes")
+	rk2 := strings.TrimSpace(r.stdout)
+	if rk2 == rk || !strings.HasPrefix(rk2, "VENR-") {
+		t.Fatalf("new recovery key %q", rk2)
+	}
+	if r := h.run(nil, rk+"\nthird master password\n", "--password-stdin", "password", "reset"); r.code != ExitAuth {
+		t.Fatalf("old recovery key still works: %d %s", r.code, r.stderr)
 	}
 }

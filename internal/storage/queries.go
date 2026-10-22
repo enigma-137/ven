@@ -410,3 +410,32 @@ func escapeLike(s string) string {
 	r := strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`)
 	return r.Replace(s)
 }
+
+// VaultRecovery is the singleton recovery-key wrap of the vault data key.
+type VaultRecovery struct {
+	Salt       []byte
+	Nonce      []byte
+	WrappedKey []byte
+	CreatedAt  time.Time
+}
+
+// GetVaultRecovery returns ErrNotFound when no recovery key is set.
+func GetVaultRecovery(ctx context.Context, q Querier) (*VaultRecovery, error) {
+	var r VaultRecovery
+	var created string
+	err := q.QueryRowContext(ctx, `SELECT salt, nonce, wrapped_key, created_at FROM vault_recovery WHERE id = 1`).Scan(
+		&r.Salt, &r.Nonce, &r.WrappedKey, &created)
+	if err != nil {
+		return nil, mapErr(err)
+	}
+	r.CreatedAt = ParseTime(created)
+	return &r, nil
+}
+
+// PutVaultRecovery creates or replaces the recovery wrap.
+func PutVaultRecovery(ctx context.Context, q Querier, r *VaultRecovery) error {
+	_, err := q.ExecContext(ctx, `INSERT INTO vault_recovery (id, salt, nonce, wrapped_key, created_at) VALUES (1, ?, ?, ?, ?)
+		ON CONFLICT (id) DO UPDATE SET salt = excluded.salt, nonce = excluded.nonce, wrapped_key = excluded.wrapped_key,
+		created_at = excluded.created_at`, r.Salt, r.Nonce, r.WrappedKey, FormatTime(r.CreatedAt))
+	return err
+}

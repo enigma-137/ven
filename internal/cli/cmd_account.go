@@ -260,8 +260,8 @@ this machine, and neither VEN nor GitHub can reset it.`,
 				}
 			}
 			c.infof("")
-			c.infof("Set up your account password. It encrypts your account key and nobody can")
-			c.infof("recover it; if you lose it, run ven login --reset-key and get re-shared.")
+			c.infof("Set up your account password. It encrypts your account key. Nobody can reset")
+			c.infof("it for you; the recovery key shown next can.")
 			pw, err := c.readNewPassword("Account password")
 			if err != nil {
 				return err
@@ -275,10 +275,15 @@ this machine, and neither VEN nor GitHub can reset it.`,
 			if err != nil {
 				return err
 			}
+			rk, err := e2e.AddRecovery(wk, priv, me.ID)
+			if err != nil {
+				return err
+			}
 			if err := cl.SetKey(ctx, api.SetKeyRequest{PublicKey: priv.PublicKey().Bytes(), WrappedPrivateKey: *wk, Replace: replace}); err != nil {
 				return remoteErr(err)
 			}
 			c.successf("Account key created. Fingerprint: %s", e2e.Fingerprint(priv.PublicKey().Bytes()))
+			c.printRecoveryKey(rk, "ven account recover")
 			if replace {
 				c.infof("Ask your project admins to share with you again (ven share --to %s).", me.Handle)
 			}
@@ -373,4 +378,124 @@ func parseTTL(s string) (d time.Duration, never bool, err error) {
 		return 0, false, fmt.Errorf("invalid duration %q (use e.g. 30d, 12h or never)", s)
 	}
 	return d, false, nil
+}
+
+func (c *cli) accountCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "account",
+		Short: "Recover your account password or create a new account recovery key",
+		Long: `Your account password unlocks your account key, which decrypts shared
+environments. Nobody can reset it for you, but your account recovery key
+(VENA-…, shown when the key was created) can.
+
+Lost both? ven login --reset-key creates a new account key; admins then
+share each environment with you again.`,
+	}
+	cmd.AddCommand(&cobra.Command{
+		Use:   "recover",
+		Short: "Set a new account password using your account recovery key",
+		Long: `Enter your account recovery key (VENA-…) and choose a new account password.
+Your access to shared environments is kept and the recovery key keeps working.
+
+With --password-stdin, the first line of stdin is the recovery key and the
+second line the new password.`,
+		Args: cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			ctx := cmd.Context()
+			cl, err := c.remote()
+			if err != nil {
+				return err
+			}
+			me, err := cl.Me(ctx)
+			if err != nil {
+				return remoteErr(err)
+			}
+			if me.PublicKey == nil || me.WrappedPrivateKey == nil {
+				return withCode(ExitAuth, errors.New("your account has no key yet: run ven login to set one up"))
+			}
+			var rk []byte
+			if c.opts.passwordStdin {
+				if rk, err = c.readStdinLine(); err != nil {
+					return err
+				}
+			} else {
+				if !c.env.Term.Interactive() {
+					return needInput("the recovery key is required: run in a terminal or pass --password-stdin")
+				}
+				if rk, err = c.env.Term.ReadPassword("Account recovery key: "); err != nil {
+					return err
+				}
+			}
+			defer vault.Wipe(rk)
+			priv, err := e2e.RecoverPrivateKey(me.WrappedPrivateKey, string(rk), me.ID, me.PublicKey)
+			if errors.Is(err, e2e.ErrIncorrectRecoveryKey) {
+				return withCode(ExitAuth, err)
+			}
+			if err != nil {
+				return usageErr("%v", err)
+			}
+			pw, err := c.readNewPassword("New account password")
+			if err != nil {
+				return err
+			}
+			defer vault.Wipe(pw)
+			wk, err := e2e.WrapPrivateKey(priv, pw, me.ID, c.accountKDF())
+			if err != nil {
+				return err
+			}
+			wk.Recovery = me.WrappedPrivateKey.Recovery
+			if err := cl.SetKey(ctx, api.SetKeyRequest{PublicKey: me.PublicKey, WrappedPrivateKey: *wk}); err != nil {
+				return remoteErr(err)
+			}
+			c.successf("Account password reset. Your access is unchanged.")
+			return nil
+		},
+	})
+	var yes bool
+	newKey := &cobra.Command{
+		Use:   "recovery-key",
+		Short: "Create a new account recovery key (replaces the old one)",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			ctx := cmd.Context()
+			cl, err := c.remote()
+			if err != nil {
+				return err
+			}
+			me, err := cl.Me(ctx)
+			if err != nil {
+				return remoteErr(err)
+			}
+			if me.WrappedPrivateKey != nil && me.WrappedPrivateKey.Recovery != nil && !yes {
+				if !c.env.Term.Interactive() {
+					return needInput("this replaces your current account recovery key; pass --yes to confirm")
+				}
+				ok, err := c.confirm("Replace your current account recovery key? The old one will stop working.", false)
+				if err != nil {
+					return err
+				}
+				if !ok {
+					return ErrCancelled
+				}
+			}
+			me, priv, err := c.unlockAccount(ctx, cl)
+			if err != nil {
+				return err
+			}
+			wk := *me.WrappedPrivateKey
+			rk, err := e2e.AddRecovery(&wk, priv, me.ID)
+			if err != nil {
+				return err
+			}
+			if err := cl.SetKey(ctx, api.SetKeyRequest{PublicKey: me.PublicKey, WrappedPrivateKey: wk}); err != nil {
+				return remoteErr(err)
+			}
+			c.successf("Account recovery key created.")
+			c.printRecoveryKey(rk, "ven account recover")
+			return nil
+		},
+	}
+	newKey.Flags().BoolVarP(&yes, "yes", "y", false, "replace an existing recovery key without asking")
+	cmd.AddCommand(newKey)
+	return cmd
 }
