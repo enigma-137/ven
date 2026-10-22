@@ -19,4 +19,7 @@ See the [README](README.md).
 - Recovery-key workflows.
 - External security review and further hardening.
 
+The proposed design for accounts, teams and terminal sharing is in
+[docs/v2-design.md](docs/v2-design.md).
+
 Nothing in V2 is promised on a timeline; priorities will follow user feedback.
