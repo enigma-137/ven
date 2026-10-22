@@ -1,0 +1,26 @@
+# Build output
+/bin/
+/dist/
+
+# Frontend
+/web/node_modules/
+/web/dist/*
+!/web/dist/.gitkeep
+*.tsbuildinfo
+
+# Never commit vaults or exported plaintext
+*.db
+*.db-wal
+*.db-shm
+.env
+.env.*
+!.env.example
+
+# Fuzz corpora generated locally
+/internal/envfile/testdata/fuzz/
+
+# Editors / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
