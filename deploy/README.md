@@ -13,10 +13,11 @@ Files in this folder:
 | `Caddyfile.snippet` | add its block to the existing Caddyfile |
 | `backup.sh` | `/home/traceiq/ven/backup.sh` (nightly cron) |
 
-## 1. Pick the domain
+## 1. Point the domain
 
-Choose a subdomain, e.g. `ven.yourdomain.com`, and add a DNS **A record** pointing it at
-`162.35.112.175`. Below it is written as `ven.example.com`; replace it everywhere.
+The server lives at `ven.traceiq.run`. Where `traceiq.run`'s DNS is managed (Vercel → Domains →
+`traceiq.run`), add an **A record**: name `ven`, value `162.35.112.175`. This does not affect
+`traceiq.run` itself. Check with `nslookup ven.traceiq.run`.
 
 ## 2. Register a GitHub OAuth app (free, about 2 minutes)
 
@@ -25,8 +26,8 @@ GitHub → Settings → Developer settings → **OAuth Apps** → **New OAuth Ap
 | Field | Value |
 | --- | --- |
 | Application name | `VEN` |
-| Homepage URL | `https://ven.example.com` |
-| Authorization callback URL | `https://ven.example.com/auth/callback` (unused by the CLI, but required) |
+| Homepage URL | `https://ven.traceiq.run` |
+| Authorization callback URL | `https://ven.traceiq.run/auth/callback` (unused by the CLI, but required) |
 | **Enable Device Flow** | **ticked** (required: `ven login` uses it) |
 
 Click **Register application** and copy the **Client ID**. VEN needs **no client secret**
@@ -87,7 +88,7 @@ append the block from `Caddyfile.snippet` with your domain, then:
 ```bash
 sudo caddy validate --config /etc/caddy/Caddyfile
 sudo systemctl reload caddy
-curl -s https://ven.example.com/v1/health   # {"status":"ok"} with a valid certificate
+curl -s https://ven.traceiq.run/v1/health   # {"status":"ok"} with a valid certificate
 ```
 
 Caddy gets the TLS certificate automatically once DNS points at the VPS.
@@ -107,7 +108,7 @@ time (e.g. `scp` to your machine).
 On your machine:
 
 ```bash
-ven login --server https://ven.example.com
+ven login --server https://ven.traceiq.run
 ven remote create "My App"
 ven link my-app -e development
 ven push --from .env
