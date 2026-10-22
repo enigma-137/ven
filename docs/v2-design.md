@@ -243,3 +243,10 @@ the server code in build step 1.
 - **Account password** is separate from the local vault's master password (you may choose the
   same one). Creating projects and joining only need your public key; decrypting needs the
   password.
+- **Forgotten account password**: `ven login --reset-key` replaces the account key. The server
+  deletes every environment key sealed to the old one and flags those environments for
+  rotation, so the reset never grants access; admins share with the user again (protected
+  environments still need an approval showing the new fingerprint). Recorded in each project's
+  audit log as `member.key_reset`.
+- **Default server**: `ven login` uses `https://ven.traceiq.run` unless `--server`, `$VEN_SERVER`
+  or a previous login says otherwise.

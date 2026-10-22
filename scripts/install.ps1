@@ -1,5 +1,5 @@
 # Install the latest VEN release on Windows (PowerShell):
-#   irm https://raw.githubusercontent.com/enigma-137/ven/HEAD/scripts/install.ps1 | iex
+#   irm https://ven.traceiq.run/install.ps1 | iex
 # Options: $env:VEN_VERSION = "v0.2.0" to pin a version.
 $ErrorActionPreference = "Stop"
 $ProgressPreference = "SilentlyContinue"

@@ -314,8 +314,10 @@ func TestTrustProxy(t *testing.T) {
 
 func TestLandingPage(t *testing.T) {
 	ts := newTestServer(t)
-	for path, want := range map[string]int{"/": 200, "/assets/site.css": 200, "/assets/": 404, "/nope": 404} {
-		resp, err := http.Get(ts.url + path)
+	noRedirect := &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+	for path, want := range map[string]int{"/": 200, "/assets/site.css": 200, "/assets/": 404, "/nope": 404,
+		"/docs/": 200, "/docs": 301, "/install.sh": 302, "/install.ps1": 302, "/assets/docs.js": 200} {
+		resp, err := noRedirect.Get(ts.url + path)
 		if err != nil {
 			t.Fatal(err)
 		}

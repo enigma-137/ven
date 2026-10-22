@@ -1,0 +1,386 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VEN Docs</title>
+<meta name="description" content="How to install VEN, keep your .env files in an encrypted vault and share them with your team from the terminal.">
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/assets/site.css">
+<link rel="stylesheet" href="/assets/docs.css">
+<script src="/assets/docs.js" defer></script>
+</head>
+<body class="docs">
+<header class="nav wrap docs-nav">
+  <a class="logo" href="/" aria-label="VEN home">VEN<span class="cursor" aria-hidden="true"></span><span class="tag">docs</span></a>
+  <nav>
+    <a href="/docs/" aria-current="page">Docs</a>
+    <a href="https://github.com/enigma-137/ven">GitHub</a>
+  </nav>
+  <button class="menu" type="button" aria-label="Open contents" aria-expanded="false">
+    <span></span><span></span>
+  </button>
+</header>
+
+<div class="wrap docs-grid">
+  <aside class="toc" aria-label="Contents">
+    <p class="toc-h">Start</p>
+    <a href="#intro">What is VEN</a>
+    <a href="#install">Install</a>
+    <a href="#quick-local">Quick start: just you</a>
+    <a href="#quick-team">Quick start: your team</a>
+    <p class="toc-h">Your vault</p>
+    <a href="#concepts">Projects &amp; environments</a>
+    <a href="#import">Import</a>
+    <a href="#export">Export</a>
+    <a href="#variables">Get, set, list</a>
+    <a href="#dashboard">Dashboard</a>
+    <p class="toc-h">Teams</p>
+    <a href="#login">Log in</a>
+    <a href="#push-pull">Push &amp; pull</a>
+    <a href="#run">Run without a file</a>
+    <a href="#share">Share &amp; join</a>
+    <a href="#members">Members</a>
+    <a href="#approve">Protected environments</a>
+    <a href="#tokens">CI &amp; service tokens</a>
+    <a href="#audit">Audit log</a>
+    <p class="toc-h">Trust</p>
+    <a href="#security">How it stays secret</a>
+    <a href="#leaks">If something leaks</a>
+    <p class="toc-h">More</p>
+    <a href="#self-host">Self-host</a>
+    <a href="#reference">Command reference</a>
+    <a href="#faq">Troubleshooting</a>
+  </aside>
+
+  <main class="doc">
+    <section id="intro">
+      <p class="eyebrow">Docs</p>
+      <h1>Your .env, in order.</h1>
+      <p class="lead">VEN keeps every project's environment variables in one encrypted vault on your machine, and shares them with your team from the terminal. Nobody needs to paste secrets into chat again.</p>
+      <div class="cards two">
+        <a class="card" href="#quick-local"><span class="pill">Just you</span><strong>Local vault</strong><span>Works offline. No account. Your laptop only.</span></a>
+        <a class="card" href="#quick-team"><span class="pill lemon">Your team</span><strong>Shared projects</strong><span>Log in with GitHub. Invite people. Encrypted end to end.</span></a>
+      </div>
+    </section>
+
+    <section id="install">
+      <h2>Install</h2>
+      <p>One command. It downloads the latest release, checks its checksum and puts <code>ven</code> on your PATH. You don't need Go or Node.</p>
+      <div class="tabs-c" data-tabs>
+        <div class="tab-bar" role="tablist">
+          <button role="tab" aria-selected="true" data-tab="mac">macOS / Linux</button>
+          <button role="tab" aria-selected="false" data-tab="win">Windows</button>
+        </div>
+        <div class="tab-panel" data-panel="mac"><pre><code>curl -fsSL https://ven.traceiq.run/install.sh | sh</code></pre></div>
+        <div class="tab-panel" data-panel="win" hidden><pre><code>irm https://ven.traceiq.run/install.ps1 | iex</code></pre></div>
+      </div>
+      <p>Check it worked:</p>
+      <pre><code>ven version</code></pre>
+      <details>
+        <summary>Other ways to install</summary>
+        <p><strong>Download by hand.</strong> Pick the archive for your system on the <a href="https://github.com/enigma-137/ven/releases/latest">releases page</a>, unpack it and move <code>ven</code> (or <code>ven.exe</code>) somewhere on your PATH. <code>SHA256SUMS</code> lists the checksums.</p>
+        <p><strong>Build from source</strong> (needs Go 1.26+, and Node 20.19+ for the dashboard):</p>
+        <pre><code>git clone https://github.com/enigma-137/ven
+cd ven
+make build        # bin/ven, dashboard included</code></pre>
+        <p><strong>Pin a version:</strong> <code>VEN_VERSION=v0.2.0</code> before the install command. <strong>Change the folder:</strong> <code>VEN_INSTALL_DIR=/usr/local/bin</code>.</p>
+      </details>
+      <div class="note">Releases aren't code-signed yet. Windows SmartScreen may warn on first run ("More info" → "Run anyway"). The install script avoids the macOS Gatekeeper prompt.</div>
+    </section>
+
+    <section id="quick-local">
+      <h2>Quick start: just you</h2>
+      <p>Everything stays on your computer. No account, no network.</p>
+      <ol class="steps-list">
+        <li><p>Create your vault and choose a master password (10+ characters).</p><pre><code>ven init</code></pre></li>
+        <li><p>Make a project. It comes with <code>development</code>, <code>staging</code> and <code>production</code>.</p><pre><code>ven projects create "Billing API"</code></pre></li>
+        <li><p>Bring in an existing <code>.env</code>. VEN shows what's new or changed before saving.</p><pre><code>ven import .env -p billing-api -e development</code></pre></li>
+        <li><p>Write it back out whenever you need a file.</p><pre><code>ven export -p billing-api -e development --out .env</code></pre></li>
+        <li><p>Prefer clicking? Open the dashboard.</p><pre><code>ven ui</code></pre></li>
+      </ol>
+      <div class="note warn">There is no password reset. If you forget the master password, nobody can decrypt the vault, including you.</div>
+    </section>
+
+    <section id="quick-team">
+      <h2>Quick start: your team</h2>
+      <ol class="steps-list">
+        <li><p>Log in with GitHub. The first time, you also choose an <strong>account password</strong>.</p><pre><code>ven login</code></pre></li>
+        <li><p>Create a shared project.</p><pre><code>ven remote create "Billing API"</code></pre></li>
+        <li><p>Link your project folder so you don't have to type the names again.</p><pre><code>ven link billing-api -e development</code></pre></li>
+        <li><p>Upload your <code>.env</code>, encrypted on your machine.</p><pre><code>ven push</code></pre></li>
+        <li><p>Invite a teammate by their GitHub username. Send them the code it prints.</p><pre><code>ven share --to octocat --env development</code></pre></li>
+        <li><p>Your teammate installs VEN, then:</p><pre><code>ven login
+ven join ven_inv_…
+ven link billing-api -e development
+ven pull</code></pre></li>
+      </ol>
+      <p>Already have a project in your local vault? Upload it in one go with <code>ven remote publish billing-api</code>.</p>
+    </section>
+
+    <section id="concepts">
+      <h2>Projects &amp; environments</h2>
+      <p>A <strong>project</strong> is one app or service. Each project has <strong>environments</strong> such as development, staging and production, and each environment holds its variables.</p>
+      <ul class="ticks">
+        <li>Refer to them by name or by slug: <code>"Billing API"</code> and <code>billing-api</code> both work.</li>
+        <li>Shared projects are named <code>owner/slug</code>, e.g. <code>octocat/billing-api</code>. If the slug alone is unique for you, that's enough.</li>
+        <li>Every environment has its own key. Access to development never gives access to production.</li>
+      </ul>
+      <pre><code>ven projects list
+ven envs create preview --project billing-api
+ven envs rename preview review --project billing-api</code></pre>
+    </section>
+
+    <section id="import">
+      <h2>Import</h2>
+      <p>Read a dotenv file into an environment. Nothing in it is executed or expanded. Broken lines are reported by line number, never with their values.</p>
+      <pre><code>ven import .env -p api -e development                  # add new keys, update changed ones
+ven import .env.prod -p api -e production --replace    # also remove keys not in the file
+ven import .env -p new-app -e dev --create             # create the project/environment if missing
+ven import .env -p api -e staging --dry-run            # preview only</code></pre>
+      <p>If a key already has a different value, VEN asks what to do, or you decide up front with <code>--on-conflict overwrite</code> or <code>--on-conflict keep</code>.</p>
+    </section>
+
+    <section id="export">
+      <h2>Export</h2>
+      <pre><code>ven export -p api -e development --out .env      # write a file (asks before overwriting)
+ven export -p api -e development --stdout        # print, for pipes</code></pre>
+      <p>Exported files contain plaintext. They're written with owner-only permissions, and VEN never overwrites a file without <code>--force</code> or your confirmation.</p>
+    </section>
+
+    <section id="variables">
+      <h2>Get, set, list</h2>
+      <pre><code>ven list -p api -e development                 # names and types, values hidden
+ven get STRIPE_KEY -p api -e development       # print one value
+ven set STRIPE_KEY -p api -e development       # asks for the value, hidden
+ven unset STRIPE_KEY -p api -e development</code></pre>
+      <p>Values are typed <code>secret</code> or <code>text</code>, which only changes how they're shown. Every value is encrypted either way.</p>
+    </section>
+
+    <section id="dashboard">
+      <h2>Dashboard</h2>
+      <p><code>ven ui</code> opens a local dashboard in your browser for browsing, editing, importing and exporting. It only listens on your own computer (<code>127.0.0.1</code>) and locks itself after 15 minutes of inactivity. Change that under Settings.</p>
+      <div class="note">The dashboard shows your local vault. Shared projects are managed from the terminal for now.</div>
+    </section>
+
+    <section id="login">
+      <h2>Log in</h2>
+      <p><code>ven login</code> shows a short code. Open the link, type the code on GitHub and approve. VEN asks GitHub for <em>no permissions</em>: it only learns your username.</p>
+      <p>The first time, you choose an <strong>account password</strong>. It unlocks your account key, which is what actually decrypts shared environments. It never leaves your machine, and neither VEN nor GitHub can recover it. Forgot it? See <a href="#faq">troubleshooting</a>.</p>
+      <pre><code>ven login
+ven whoami      # your username and key fingerprint
+ven logout      # ends this device's session</code></pre>
+      <div class="note">GitHub proves <em>who you are</em>. Your account password protects <em>what you can read</em>. Someone who steals your GitHub login still can't decrypt anything.</div>
+    </section>
+
+    <section id="push-pull">
+      <h2>Push &amp; pull</h2>
+      <pre><code>ven pull                              # decrypt into .env
+ven pull --out .env.staging -e staging
+ven pull --stdout | some-tool
+
+ven push                              # upload .env (keys missing from the file are removed)
+ven push --from .env.staging -e staging
+ven push --merge                      # only add and update</code></pre>
+      <p>Before uploading, <code>push</code> lists which keys are added, changed and removed (never values) and asks to confirm. If someone pushed in the meantime, VEN refuses so nobody's change is lost: pull, reapply yours, push again.</p>
+      <p><code>ven link</code> writes <code>.ven.json</code> in your folder (project and environment, no secrets, safe to commit) and adds <code>.env</code> to <code>.gitignore</code>.</p>
+    </section>
+
+    <section id="run">
+      <h2>Run without a file</h2>
+      <p>The safest way to use secrets: hand them straight to your app and leave nothing on disk.</p>
+      <pre><code>ven run -- npm run dev
+ven run -e staging -- ./deploy.sh</code></pre>
+      <p>Or load them into your current shell:</p>
+      <div class="tabs-c" data-tabs>
+        <div class="tab-bar" role="tablist">
+          <button role="tab" aria-selected="true" data-tab="bash">bash / zsh</button>
+          <button role="tab" aria-selected="false" data-tab="ps">PowerShell</button>
+          <button role="tab" aria-selected="false" data-tab="fish">fish</button>
+        </div>
+        <div class="tab-panel" data-panel="bash"><pre><code>eval "$(ven shellenv)"</code></pre></div>
+        <div class="tab-panel" data-panel="ps" hidden><pre><code>ven shellenv | Invoke-Expression</code></pre></div>
+        <div class="tab-panel" data-panel="fish" hidden><pre><code>ven shellenv --shell fish | source</code></pre></div>
+      </div>
+      <p>Need one value somewhere else? <code>ven copy STRIPE_KEY</code> puts it on your clipboard (<code>ven copy</code> alone copies the whole environment).</p>
+    </section>
+
+    <section id="share">
+      <h2>Share &amp; join</h2>
+      <pre><code>ven share --to octocat --env development,staging
+ven share --to octocat --env development --role developer --expires 90d</code></pre>
+      <p>That prints an invite code (<code>ven_inv_…</code>). Send it any way you like. It's safe in chat because it:</p>
+      <ul class="ticks">
+        <li>only works for that one GitHub account,</li>
+        <li>works once, and expires after 24 hours (<code>--invite-ttl</code> to change, up to 7 days),</li>
+        <li>carries the keys locked to a secret that only exists inside the code. The server can't open them either.</li>
+      </ul>
+      <p>Your teammate runs <code>ven join &lt;code&gt;</code>. See and cancel unused invites with <code>ven invites</code> and <code>ven invites revoke &lt;id&gt;</code>.</p>
+      <table>
+        <thead><tr><th>Role</th><th>Can</th></tr></thead>
+        <tbody>
+          <tr><td><code>viewer</code> <span class="dim">(default)</span></td><td>Pull the environments they were given</td></tr>
+          <tr><td><code>developer</code></td><td>Also push changes</td></tr>
+          <tr><td><code>admin</code></td><td>Also invite, remove, approve and create tokens</td></tr>
+          <tr><td><code>owner</code></td><td>Also delete the project</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="members">
+      <h2>Members</h2>
+      <pre><code>ven members                              # who has access, to what, until when
+ven members renew octocat --for 30d      # extend (or --for never)
+ven members role octocat developer
+ven members remove octocat --yes</code></pre>
+      <p>Access lasts <strong>30 days</strong> by default, then ends on its own. When someone is removed or expires, VEN changes the keys of the environments they could read, and nobody can push new values until that's done. <code>members remove</code> does it right away.</p>
+      <div class="note warn">Removing someone stops future access. Anything they already pulled, they still know, so change those secrets at the source too (Stripe, AWS, …). <code>ven audit</code> shows what they pulled.</div>
+    </section>
+
+    <section id="approve">
+      <h2>Protected environments</h2>
+      <p>Environments named <code>production</code>, <code>prod</code> or <code>live</code> are protected (add more with <code>--protect</code> or <code>ven remote envs create --protected</code>). An invite code alone never unlocks them.</p>
+      <ol class="steps-list">
+        <li><p>Your teammate joins and runs <code>ven whoami</code>. It shows a fingerprint like <code>K7QF-2M9X-…</code>.</p></li>
+        <li><p>You run:</p><pre><code>ven members approve octocat</code></pre></li>
+        <li><p>Compare the fingerprint VEN shows you with theirs, on a call or in person. Approve only if they match.</p></li>
+      </ol>
+      <p>This stops anyone, even a hacked server, from slipping in their own key instead of your teammate's.</p>
+    </section>
+
+    <section id="tokens">
+      <h2>CI &amp; service tokens</h2>
+      <p>Give CI jobs and servers their own read-only access instead of a person's login.</p>
+      <pre><code>ven tokens create --name github-actions --env production --expires 90d</code></pre>
+      <p>The token is shown once. Store it as a secret in your CI, then:</p>
+      <pre><code>VEN_SERVER=https://ven.traceiq.run VEN_TOKEN=ven_st_… ven run -- ./deploy.sh</code></pre>
+      <details>
+        <summary>GitHub Actions example</summary>
+        <pre><code>- name: Install VEN
+  run: curl -fsSL https://ven.traceiq.run/install.sh | sh
+- name: Deploy
+  env:
+    VEN_SERVER: https://ven.traceiq.run
+    VEN_TOKEN: ${{ secrets.VEN_TOKEN }}
+  run: ~/.local/bin/ven run -- ./deploy.sh</code></pre>
+      </details>
+      <p>Tokens can't push, invite or create other tokens, and they always expire (one year at most). <code>ven tokens</code> shows when each was last used. <code>ven tokens revoke github-actions</code> ends one and changes the keys it had.</p>
+    </section>
+
+    <section id="audit">
+      <h2>Audit log</h2>
+      <pre><code>ven audit
+ven audit --limit 200</code></pre>
+      <p>Admins see who pulled, pushed, shared, approved, removed or rotated what, when and from which IP. The log never contains values.</p>
+    </section>
+
+    <section id="security">
+      <h2>How it stays secret</h2>
+      <div class="flow">
+        <div><span class="n">1</span><strong>Your machine encrypts</strong><span>Values are locked with a key that never leaves your device unencrypted.</span></div>
+        <div><span class="n">2</span><strong>The server stores noise</strong><span>No values, no variable names, no private keys, no invite secrets.</span></div>
+        <div><span class="n">3</span><strong>Teammates decrypt locally</strong><span>Each one opens the environment key with their own account key.</span></div>
+      </div>
+      <table>
+        <thead><tr><th>What</th><th>How</th></tr></thead>
+        <tbody>
+          <tr><td>Values</td><td>AES-256-GCM, a fresh random nonce on every write</td></tr>
+          <tr><td>Passwords → keys</td><td>Argon2id (64 MiB, 3 passes)</td></tr>
+          <tr><td>Sharing keys</td><td>X25519 + HKDF-SHA256, each environment key sealed to each person</td></tr>
+          <tr><td>Tampering</td><td>Every ciphertext is bound to its project, environment, version and owner, so moving it around fails</td></tr>
+          <tr><td>Sessions</td><td>1-hour access tokens; refresh tokens work once, and reusing one logs that session out everywhere</td></tr>
+        </tbody>
+      </table>
+      <p>All cryptography comes from Go's standard library and <code>x/crypto</code>; VEN doesn't invent its own. Full detail in the <a href="https://github.com/enigma-137/ven/blob/HEAD/docs/v2-design.md">design document</a> and <a href="https://github.com/enigma-137/ven/blob/HEAD/docs/security.md">security model</a>.</p>
+      <div class="note warn">VEN hasn't had an external security review yet. Treat it as a preview for anything critical. Found a problem? See <a href="https://github.com/enigma-137/ven/blob/HEAD/SECURITY.md">SECURITY.md</a>.</div>
+    </section>
+
+    <section id="leaks">
+      <h2>If something leaks</h2>
+      <table>
+        <thead><tr><th>Leaked</th><th>What happens</th></tr></thead>
+        <tbody>
+          <tr><td>An invite code</td><td>Nothing, unless the attacker is also logged in as that exact GitHub user before it's used or expires.</td></tr>
+          <tr><td>Your GitHub account</td><td>They see project names and members, not values. They'd still need your account password.</td></tr>
+          <tr><td>The VEN server</td><td>Ciphertext only. Weak passwords could be guessed offline, slowly, so use a strong one.</td></tr>
+          <tr><td>A service token</td><td>Read access to its environments until you revoke it. Revoke it and change those secrets at the source.</td></tr>
+          <tr><td>A teammate leaves</td><td>Remove them; keys change automatically. Change anything they pulled at the source.</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="self-host">
+      <h2>Self-host</h2>
+      <p>The server is the same <code>ven</code> program. It stores everything in one SQLite file and is light enough for a small VPS.</p>
+      <ol class="steps-list">
+        <li><p>Create a GitHub <strong>OAuth App</strong> (Settings → Developer settings → OAuth Apps) and tick <strong>Enable Device Flow</strong>. Copy the Client ID; no secret is needed.</p></li>
+        <li><p>Run the server on loopback, behind a reverse proxy that does HTTPS (Caddy, nginx):</p><pre><code>ven server --db /srv/ven/server.db --github-client-id Ov23… --trust-proxy</code></pre></li>
+        <li><p>Point everyone at it:</p><pre><code>ven login --server https://ven.yourcompany.com</code></pre></li>
+      </ol>
+      <p>A ready systemd unit, Caddy block, backup script and step-by-step guide are in <a href="https://github.com/enigma-137/ven/tree/HEAD/deploy"><code>deploy/</code></a>.</p>
+    </section>
+
+    <section id="reference">
+      <h2>Command reference</h2>
+      <p>Run <code>ven &lt;command&gt; --help</code> for every flag.</p>
+      <h3>Local vault</h3>
+      <table class="ref">
+        <tbody>
+          <tr><td><code>init</code></td><td>Create the vault and master password</td></tr>
+          <tr><td><code>status</code></td><td>Vault location and state</td></tr>
+          <tr><td><code>projects list|create|rename|update|delete</code></td><td>Manage projects</td></tr>
+          <tr><td><code>envs list|create|rename|delete -p &lt;project&gt;</code></td><td>Manage environments</td></tr>
+          <tr><td><code>import &lt;file&gt; -p -e</code></td><td>Import a dotenv file, with preview</td></tr>
+          <tr><td><code>export -p -e [--out f | --stdout]</code></td><td>Export as dotenv</td></tr>
+          <tr><td><code>list | get | set | unset</code></td><td>Work with single variables</td></tr>
+          <tr><td><code>password change</code></td><td>Change the master password</td></tr>
+          <tr><td><code>ui</code></td><td>Open the local dashboard</td></tr>
+        </tbody>
+      </table>
+      <h3>Teams</h3>
+      <table class="ref">
+        <tbody>
+          <tr><td><code>login | logout | whoami</code></td><td>Account and key fingerprint</td></tr>
+          <tr><td><code>remote list|create|publish|envs create|rotate|delete</code></td><td>Shared projects</td></tr>
+          <tr><td><code>link &lt;project&gt; -e &lt;env&gt;</code></td><td>Remember project/environment for this folder</td></tr>
+          <tr><td><code>pull | push</code></td><td>Download / upload an environment</td></tr>
+          <tr><td><code>run -- &lt;cmd&gt; | shellenv | copy</code></td><td>Use variables without a file</td></tr>
+          <tr><td><code>share | join | invites</code></td><td>Invite people</td></tr>
+          <tr><td><code>members [remove|renew|role|approve]</code></td><td>Manage access</td></tr>
+          <tr><td><code>tokens [create|revoke]</code></td><td>Service tokens for CI</td></tr>
+          <tr><td><code>audit</code></td><td>Audit log</td></tr>
+          <tr><td><code>server</code></td><td>Run your own server</td></tr>
+        </tbody>
+      </table>
+      <h3>Global flags &amp; environment</h3>
+      <table class="ref">
+        <tbody>
+          <tr><td><code>--vault &lt;path&gt;</code> / <code>VEN_VAULT</code></td><td>Use a different vault file (your login is kept next to it)</td></tr>
+          <tr><td><code>--password-stdin</code></td><td>Read the password from stdin, for scripts</td></tr>
+          <tr><td><code>--non-interactive</code></td><td>Never prompt; fail instead</td></tr>
+          <tr><td><code>--no-color</code> / <code>NO_COLOR</code></td><td>Plain output</td></tr>
+          <tr><td><code>VEN_SERVER</code>, <code>VEN_TOKEN</code></td><td>Server and service token for CI</td></tr>
+        </tbody>
+      </table>
+      <h3>Exit codes</h3>
+      <p class="codes"><span><b>0</b> ok</span><span><b>1</b> error</span><span><b>2</b> usage</span><span><b>3</b> auth / wrong password</span><span><b>4</b> not found</span><span><b>5</b> conflict</span><span><b>6</b> input needed</span><span><b>130</b> cancelled</span></p>
+    </section>
+
+    <section id="faq">
+      <h2>Troubleshooting</h2>
+      <details><summary>I forgot my password</summary><p><strong>Local master password:</strong> the vault can't be recovered. <strong>Account password:</strong> run <code>ven login --reset-key</code> and choose a new one. You lose access to shared environments until an admin shares them with you again (<code>ven share --to you</code>). Your teammates still hold the keys, so the team loses nothing.</p></details>
+      <details><summary>"waiting for approval"</summary><p>The environment is protected. Ask an admin to run <code>ven members approve &lt;you&gt;</code>, and read them your <code>ven whoami</code> fingerprint.</p></details>
+      <details><summary>"changed since you last pulled"</summary><p>Someone pushed first. Run <code>ven pull</code>, reapply your change, then <code>ven push</code>.</p></details>
+      <details><summary>"key must be rotated"</summary><p>Someone lost access. Any developer or admin with access fixes it by running <code>ven pull</code>, which changes the key automatically, or <code>ven remote rotate</code>.</p></details>
+      <details><summary>"invite not found"</summary><p>The code expired, was already used, was revoked, or you're logged in as a different GitHub account than the one invited. Check <code>ven whoami</code>, then ask for a new invite.</p></details>
+      <details><summary>Windows says "Windows protected your PC"</summary><p>Releases aren't code-signed yet. Click "More info" → "Run anyway", or use the install command, which downloads and verifies the file for you.</p></details>
+    </section>
+
+    <footer class="doc-foot">
+      <span>Something missing? <a href="https://github.com/enigma-137/ven/issues">Open an issue</a>.</span>
+      <a href="#intro">Back to top ↑</a>
+    </footer>
+  </main>
+</div>
+</body>
+</html>

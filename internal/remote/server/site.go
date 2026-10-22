@@ -23,7 +23,7 @@ func (s *Server) siteRoutes() {
 	}
 	files := http.FileServerFS(sub)
 	page := func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/" && r.URL.Path[len(r.URL.Path)-1] == '/' {
+		if r.URL.Path != "/" && r.URL.Path != "/docs/" && r.URL.Path[len(r.URL.Path)-1] == '/' {
 			writeJSON(w, http.StatusNotFound, api.Error{Code: api.CodeNotFound, Message: "not found"})
 			return
 		}
@@ -33,4 +33,12 @@ func (s *Server) siteRoutes() {
 	}
 	s.mux.HandleFunc("GET /{$}", page)
 	s.mux.HandleFunc("GET /assets/", page)
+	s.mux.HandleFunc("GET /docs/", page)
+	s.mux.Handle("GET /docs", http.RedirectHandler("/docs/", http.StatusMovedPermanently))
+	// Short install URLs for the docs; the scripts themselves live in the repository.
+	for _, name := range []string{"install.sh", "install.ps1"} {
+		s.mux.Handle("GET /"+name, http.RedirectHandler(installScriptBase+name, http.StatusFound))
+	}
 }
+
+const installScriptBase = "https://raw.githubusercontent.com/enigma-137/ven/HEAD/scripts/"
