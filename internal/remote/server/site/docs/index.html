@@ -86,7 +86,7 @@ cd ven
 make build        # bin/ven, dashboard included</code></pre>
         <p><strong>Pin a version:</strong> <code>VEN_VERSION=v0.2.0</code> before the install command. <strong>Change the folder:</strong> <code>VEN_INSTALL_DIR=/usr/local/bin</code>.</p>
       </details>
-      <div class="note">Releases aren't code-signed yet. Windows SmartScreen may warn on first run ("More info" → "Run anyway"). The install script avoids the macOS Gatekeeper prompt.</div>
+      <div class="note warn">Windows builds aren't code-signed yet. If Windows 11's <strong>Smart App Control</strong> is on, it blocks <code>ven.exe</code> ("An Application Control policy has blocked this file"). Leave it on and <a href="#faq-windows">use WSL</a> for now. Older Windows may show SmartScreen instead: "More info" → "Run anyway".</div>
     </section>
 
     <section id="quick-local">
@@ -378,7 +378,15 @@ ven audit --limit 200</code></pre>
       <details><summary>"changed since you last pulled"</summary><p>Someone pushed first. Run <code>ven pull</code>, reapply your change, then <code>ven push</code>.</p></details>
       <details><summary>"key must be rotated"</summary><p>Someone lost access. Any developer or admin with access fixes it by running <code>ven pull</code>, which changes the key automatically, or <code>ven remote rotate</code>.</p></details>
       <details><summary>"invite not found"</summary><p>The code expired, was already used, was revoked, or you're logged in as a different GitHub account than the one invited. Check <code>ven whoami</code>, then ask for a new invite.</p></details>
-      <details><summary>Windows says "Windows protected your PC"</summary><p>Releases aren't code-signed yet. Click "More info" → "Run anyway", or use the install command, which downloads and verifies the file for you.</p></details>
+      <details id="faq-windows"><summary>Windows blocks ven.exe</summary>
+        <p><strong>"An Application Control policy has blocked this file"</strong> comes from Smart App Control (Windows Security → App &amp; browser control → Smart App Control). It blocks apps that aren't code-signed, and VEN's Windows builds aren't signed yet. Don't turn it off: Windows can't turn it back on without a reinstall. Run VEN in WSL instead; Smart App Control doesn't apply there:</p>
+        <pre><code>wsl --install                                   # PowerShell as admin, once; restart
+curl -fsSL https://ven.traceiq.run/install.sh | sh   # then inside Ubuntu
+echo 'export PATH="$HOME/.local/bin:$PATH"' &gt;&gt; ~/.bashrc &amp;&amp; source ~/.bashrc</code></pre>
+        <p>Your Windows folders are under <code>/mnt/c/</code>, e.g. <code>cd /mnt/c/Users/you/project &amp;&amp; ven pull</code>.</p>
+        <p>On a work PC, the same message can come from a company policy: ask your IT team to allow <code>ven.exe</code>.</p>
+        <p><strong>"Windows protected your PC"</strong> is SmartScreen: click "More info" → "Run anyway".</p>
+      </details>
     </section>
 
     <footer class="doc-foot">

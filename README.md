@@ -49,7 +49,9 @@ irm https://ven.traceiq.run/install.ps1 | iex
 Both scripts download the latest [release](https://github.com/enigma-137/ven/releases/latest),
 check its SHA-256 checksum and install `ven` to `~/.local/bin` (Windows:
 `%LOCALAPPDATA%\Programs\ven`, added to your PATH). You can also download an archive from the
-releases page yourself. The binaries are not code-signed yet, so Windows SmartScreen may warn on
+releases page yourself. The binaries are not code-signed yet: on Windows 11 with Smart App Control
+on, `ven.exe` is blocked ("An Application Control policy has blocked this file"), so use VEN inside
+WSL with the Linux/macOS command for now. Otherwise Windows SmartScreen may warn on
 first run, and macOS may block an archive opened in Finder (the install script avoids that).
 
 ### Releasing
