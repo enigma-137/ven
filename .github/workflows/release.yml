@@ -61,4 +61,8 @@ jobs:
         run: |
           prerelease=""
           case "$VERSION" in *-*) prerelease="--prerelease" ;; esac
-          gh release create "$VERSION" dist/* --title "VEN $VERSION" --generate-notes $prerelease
+          cat > notes.md <<'NOTES'
+          Install: https://ven.traceiq.run/docs/#install · Verify downloads with `SHA256SUMS`.
+          Code signing policy: https://ven.traceiq.run/code-signing (Windows signing via the SignPath Foundation is being set up).
+          NOTES
+          gh release create "$VERSION" dist/* --title "VEN $VERSION" --notes-file notes.md --generate-notes $prerelease
