@@ -174,6 +174,7 @@ fail unless --on-conflict is given.`,
 			}
 			c.successf("Imported into %s: %d created, %d updated, %d kept, %d unchanged, %d removed",
 				t.label(), res.Created, res.Updated, res.Kept, res.Unchanged, res.Removed)
+			c.rememberLocalEnv(ctx, a, k, t.env.ID)
 			return nil
 		},
 	}
@@ -369,6 +370,7 @@ diagnostics go to stderr.`,
 				return err
 			}
 			defer clear(data)
+			c.rememberLocalEnv(ctx, a, k, t.env.ID)
 			if stdout {
 				_, err := c.env.Out.Write(data)
 				return err

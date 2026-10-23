@@ -195,6 +195,7 @@ func (c *cli) setCommand() *cobra.Command {
 				verb = "Created"
 			}
 			c.successf("%s %s in %s (%s)", verb, v.Key, t.label(), v.Type)
+			c.rememberLocalEnv(ctx, a, k, t.env.ID)
 			return nil
 		},
 	}
