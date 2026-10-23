@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VEN Code Signing Policy</title>
+<meta name="description" content="How VEN's release binaries are built, approved and signed.">
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/assets/site.css">
+<link rel="stylesheet" href="/assets/docs.css">
+<script src="/assets/docs.js" defer></script>
+</head>
+<body class="docs">
+<header class="nav wrap docs-nav">
+  <a class="logo" href="/" aria-label="VEN home">VEN<span class="cursor" aria-hidden="true"></span><span class="tag">policy</span></a>
+  <nav>
+    <a href="/docs/">Docs</a>
+    <a href="https://github.com/enigma-137/ven">GitHub</a>
+  </nav>
+  <button class="menu" type="button" aria-label="Open contents" aria-expanded="false"><span></span><span></span></button>
+</header>
+
+<div class="wrap docs-grid">
+  <aside class="toc" aria-label="Contents">
+    <p class="toc-h">Code signing</p>
+    <a href="#overview">Overview</a>
+    <a href="#builds">How releases are built</a>
+    <a href="#roles">Team roles</a>
+    <a href="#verify">Verify a download</a>
+    <a href="#privacy">Privacy</a>
+    <a href="#report">Report a problem</a>
+  </aside>
+
+  <main class="doc">
+    <section id="overview">
+      <p class="eyebrow">Policy</p>
+      <h1>Code signing policy</h1>
+      <p class="lead">Every VEN release is built from the public source code by an automated pipeline. This page explains how releases are made and signed, and who can approve them.</p>
+      <div class="note">Windows code signing through the <a href="https://signpath.org/">SignPath Foundation</a> is being set up. Until it is active, Windows binaries are unsigned; see <a href="/docs/#faq-windows">Windows blocks ven.exe</a>.</div>
+    </section>
+
+    <section id="builds">
+      <h2>How releases are built</h2>
+      <ul class="ticks">
+        <li>All code lives in the public repository <a href="https://github.com/enigma-137/ven">github.com/enigma-137/ven</a> under the Apache-2.0 license. VEN contains no proprietary components.</li>
+        <li>Changes reach the release branch through pull requests, which must pass the automated checks (formatting, static analysis, tests with the race detector, cross-platform builds, dashboard build).</li>
+        <li>A release starts when an approver pushes a version tag. GitHub Actions then runs the tests again and builds every platform from that exact commit with the <a href="https://github.com/enigma-137/ven/blob/HEAD/.github/workflows/release.yml">public release workflow</a>. No binary is built or uploaded by hand.</li>
+        <li>Windows binaries are signed only as a step of that workflow, with keys held by the signing service; maintainers never hold the private key.</li>
+        <li>Each release publishes <code>SHA256SUMS</code> next to the archives.</li>
+      </ul>
+    </section>
+
+    <section id="roles">
+      <h2>Team roles</h2>
+      <table>
+        <thead><tr><th>Role</th><th>Members</th></tr></thead>
+        <tbody>
+          <tr><td>Committers and reviewers</td><td><a href="https://github.com/enigma-137">enigma-137</a></td></tr>
+          <tr><td>Approvers (may start a signed release)</td><td><a href="https://github.com/enigma-137">enigma-137</a></td></tr>
+        </tbody>
+      </table>
+      <p>Committers and approvers must use two-factor authentication on GitHub. Changes from outside contributors are reviewed by a committer before they are merged.</p>
+    </section>
+
+    <section id="verify">
+      <h2>Verify a download</h2>
+      <p>The install scripts check the SHA-256 checksum automatically. To check by hand:</p>
+      <div class="tabs-c" data-tabs>
+        <div class="tab-bar" role="tablist">
+          <button role="tab" aria-selected="true" data-tab="mac">macOS / Linux</button>
+          <button role="tab" aria-selected="false" data-tab="win">Windows</button>
+        </div>
+        <div class="tab-panel" data-panel="mac"><pre><code>sha256sum --ignore-missing -c SHA256SUMS</code></pre></div>
+        <div class="tab-panel" data-panel="win" hidden><pre><code>Get-FileHash .\ven_X.Y.Z_windows_amd64.zip -Algorithm SHA256</code></pre></div>
+      </div>
+      <p>Once Windows signing is active, right-click <code>ven.exe</code> → Properties → Digital Signatures to see the signature.</p>
+    </section>
+
+    <section id="privacy">
+      <h2>Privacy</h2>
+      <p>VEN does not send telemetry or usage data anywhere. It only connects to other systems when you ask it to:</p>
+      <ul class="ticks">
+        <li>the VEN server you log in to (<code>ven login</code>, and commands for shared projects such as <code>pull</code>, <code>push</code> and <code>share</code>), which only ever receives encrypted values;</li>
+        <li>GitHub, during <code>ven login</code>, through that server, to learn your username;</li>
+        <li>GitHub release downloads, when you run the install script.</li>
+      </ul>
+      <p>The local vault and the <code>ven ui</code> dashboard stay on your computer.</p>
+    </section>
+
+    <section id="report">
+      <h2>Report a problem</h2>
+      <p>If you think a VEN binary was not built as described here, or you found a security issue, report it privately through the repository's <a href="https://github.com/enigma-137/ven/security">Security tab</a> ("Report a vulnerability").</p>
+    </section>
+  </main>
+</div>
+</body>
+</html>
