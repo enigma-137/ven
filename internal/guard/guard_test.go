@@ -82,8 +82,12 @@ func TestPersistAndReplace(t *testing.T) {
 
 func TestIsEnvFile(t *testing.T) {
 	for p, want := range map[string]bool{
-		".env": true, "app/.env.local": true, ".env.production": true, "prod.env": true, "config/.ENV": true,
-		".env.example": false, ".env.sample": false, ".env.template": false, "env.go": false, ".envrc": false, "README.md": false,
+		".env": true, "app/.env.local": true, ".env.production": true, ".env.development.local": true, ".env.staging": true,
+		"prod.env": true, "secrets.env": true, "config/.ENV": true, ".env-local": true, ".env_prod": true, "env.local": true,
+		"env.production.local": true,
+		".env.example": false, ".env.sample": false, ".env.template": false, ".env.local.example": false,
+		".env.production.sample": false, ".env-example": false, "env.example": false, ".env.dist": false,
+		"env.go": false, "env.ts": false, "environment.ts": false, ".envrc": false, "README.md": false, "dotenv.md": false,
 	} {
 		if IsEnvFile(p) != want {
 			t.Errorf("IsEnvFile(%q) = %v", p, !want)

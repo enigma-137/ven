@@ -298,7 +298,8 @@ ven guard uninstall           # remove the hook</code></pre>
       <ul class="ticks">
         <li>Only values typed <em>secret</em> and at least 8 characters long are remembered, so ports and public URLs never trigger it, and the fingerprints don't help anyone guess short values.</li>
         <li>Values are matched as whole words, including inside URLs such as <code>postgres://user:pass@host</code>.</li>
-        <li><code>.env.example</code>, <code>.env.sample</code> and <code>.env.template</code> are allowed.</li>
+        <li>Blocked files: <code>.env</code>, <code>.env.local</code>, <code>.env.development.local</code>, <code>.env.production</code>, <code>.env-local</code>, <code>env.local</code>, <code>prod.env</code> and similar. Templates are allowed: <code>.env.example</code>, <code>.env.sample</code>, <code>.env.template</code>, <code>.env.local.example</code>…</li>
+        <li>Other files, such as <code>.envrc</code> or config files, are still checked for any secret value VEN knows.</li>
         <li>Already using another pre-commit hook (husky, pre-commit)? Add <code>ven guard scan --staged</code> to it instead.</li>
       </ul>
       <div class="note warn">A secret that was already pushed is leaked, even if you delete the commit. If <code>--history</code> finds one, change it at its source (Stripe, AWS, …).</div>

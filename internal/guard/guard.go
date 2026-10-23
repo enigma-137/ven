@@ -253,20 +253,28 @@ func mask(line string, hits []hit) string {
 	return s
 }
 
+// envTemplates are final name segments that mark a dotenv template, which
+// is meant to be committed (.env.example, .env.local.sample).
+var envTemplates = map[string]bool{"example": true, "sample": true, "template": true, "tmpl": true,
+	"dist": true, "defaults": true, "default": true, "schema": true, "tpl": true}
+
 // IsEnvFile reports whether a path names a dotenv file that should not be
-// committed (.env, .env.local, prod.env), allowing templates such as
-// .env.example.
+// committed: .env, .env.local, .env.development.local, .env-local,
+// .env_local, env.local and prod.env. Templates such as .env.example or
+// .env.local.example are allowed. Other files (.envrc, config files) are
+// still checked for stored secret values.
 func IsEnvFile(path string) bool {
 	base := strings.ToLower(filepath.Base(filepath.FromSlash(path)))
+	if i := strings.LastIndexAny(base, "._-"); i >= 0 && envTemplates[base[i+1:]] {
+		return false
+	}
 	switch {
-	case base == ".env":
+	case base == ".env", base == "env.local":
 		return true
-	case strings.HasPrefix(base, ".env."):
-		switch strings.TrimPrefix(base, ".env.") {
-		case "example", "sample", "template", "dist", "defaults", "schema":
-			return false
-		}
+	case strings.HasPrefix(base, ".env.") || strings.HasPrefix(base, ".env-") || strings.HasPrefix(base, ".env_"):
 		return true
+	case strings.HasPrefix(base, "env.") && strings.HasSuffix(base, ".local"):
+		return true // env.development.local
 	case strings.HasSuffix(base, ".env") && len(base) > len(".env"):
 		return true
 	}
