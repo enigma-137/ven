@@ -30,7 +30,7 @@ func (c *cli) userSession(ctx context.Context, rf *remoteFlags) (*envSession, er
 	if err != nil {
 		return nil, err
 	}
-	return &envSession{cl: cl, project: p, priv: priv, ptype: e2e.PrincipalUser, pid: me.ID}, nil
+	return &envSession{cl: cl, project: p, priv: priv, ptype: e2e.PrincipalUser, pid: me.ID, remember: c.guardRemember}, nil
 }
 
 // selectEnvs resolves a comma-separated list (default: the linked

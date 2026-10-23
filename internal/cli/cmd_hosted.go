@@ -16,6 +16,7 @@ import (
 
 	"github.com/enigma-137/ven/internal/e2e"
 	"github.com/enigma-137/ven/internal/envfile"
+	"github.com/enigma-137/ven/internal/guard"
 	"github.com/enigma-137/ven/internal/remote/api"
 	"github.com/enigma-137/ven/internal/remote/client"
 	"github.com/enigma-137/ven/internal/vault"
@@ -147,6 +148,10 @@ type envSession struct {
 	ptype   string
 	pid     string
 	tokens  *api.TokenState // service token mode
+
+	// remember, when set, receives every decrypted environment so
+	// ven guard can learn its secret values.
+	remember func(source string, values []guard.Value)
 }
 
 func (s *envSession) canWrite() bool {
@@ -201,7 +206,7 @@ func (c *cli) session(ctx context.Context, rf *remoteFlags, needEnv bool) (*envS
 	if err != nil {
 		return nil, nil, err
 	}
-	return &envSession{cl: cl, project: p, priv: priv, ptype: e2e.PrincipalUser, pid: me.ID}, env, nil
+	return &envSession{cl: cl, project: p, priv: priv, ptype: e2e.PrincipalUser, pid: me.ID, remember: c.guardRemember}, env, nil
 }
 
 func (c *cli) tokenSession(ctx context.Context, tok, envRef string, needEnv bool) (*envSession, *api.Environment, error) {
@@ -285,6 +290,9 @@ func (s *envSession) decrypt(st *api.EnvironmentState) (*openedEnv, error) {
 		return nil, fmt.Errorf("decrypted content of %s is not valid dotenv", e.Slug)
 	}
 	o.entries = parsed.Entries
+	if s.remember != nil {
+		s.remember(hostedSource(s.project.Ref(), e.Slug), secretValues(o.entries, nil))
+	}
 	return o, nil
 }
 
@@ -550,6 +558,7 @@ refused: pull, reapply your change and push again.`,
 			if err != nil {
 				return remoteErr(err)
 			}
+			c.guardRemember(hostedSource(s.project.Ref(), e.Slug), secretValues(next, nil))
 			c.successf("Pushed %s/%s (revision %d)", s.project.Ref(), e.Slug, updated.Revision)
 			return nil
 		},

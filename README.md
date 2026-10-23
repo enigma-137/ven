@@ -22,6 +22,7 @@ encryption code.
 - [Quick start](#quick-start)
 - [CLI reference](#cli-reference)
 - [Dashboard](#dashboard)
+- [Guard: stop leaks to Git](#guard-stop-leaks-to-git)
 - [Hosted projects and teams (V2 preview)](#hosted-projects-and-teams-v2-preview)
 - [Where data lives](#where-data-lives)
 - [Development](#development)
@@ -187,6 +188,19 @@ export download and settings (vault location, auto-lock interval, password chang
 The dashboard auto-locks after inactivity (default 15 minutes, configurable) and when the
 server stops. Stop it with Ctrl+C.
 
+## Guard: stop leaks to Git
+
+```bash
+ven guard install          # pre-commit hook for this repository
+ven guard scan --history   # check every past commit
+```
+
+Every commit is checked for `.env` files and for any secret value you keep in VEN (local vault or
+shared projects), wherever it was pasted. Findings show a masked preview. Guard never needs your
+password at commit time: VEN keeps salted fingerprints of secret values (never the values) and
+refreshes them whenever it decrypts values anyway (`pull`, `import`, `set`, `export`, or
+`ven guard index`). Only `secret`-typed values of at least 8 characters are remembered.
+
 ## Hosted projects and teams (V2 preview)
 
 > **Preview, unreviewed.** Everything above works offline without an account. The commands
@@ -237,6 +251,7 @@ Production-like environments are **protected**: the code alone never unlocks the
 | `ven members [remove\|renew\|role\|approve]` | Manage access. |
 | `ven tokens [create\|revoke]` | Read-only service tokens for CI and servers. |
 | `ven audit` | Project audit log (admins). |
+| `ven guard install` / `scan [--staged\|--history]` / `index` / `status` / `uninstall` | Pre-commit hook and scanner that block `.env` files and any secret you keep in VEN from being committed. |
 | `ven server` | Run the server (see [deploy/README.md](deploy/README.md)). |
 
 ## Where data lives
@@ -247,7 +262,8 @@ Production-like environments are **protected**: the code alone never unlocks the
 | macOS | `~/Library/Application Support/VEN/vault.db` |
 | Linux | `$XDG_DATA_HOME/ven/vault.db` or `~/.local/share/ven/vault.db` |
 
-If you use hosted projects, the login is kept in `account.json` (0600) in the same directory.
+If you use hosted projects, the login is kept in `account.json` (0600) in the same directory, and
+`ven guard`'s fingerprints in `guard.json` (0600).
 
 Override with `--vault` or `VEN_VAULT`. Back up the `.db` file (and its `-wal` file if
 present, or stop VEN first). A backup is only useful with the master password.

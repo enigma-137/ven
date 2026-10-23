@@ -44,6 +44,8 @@
     <a href="#approve">Protected environments</a>
     <a href="#tokens">CI &amp; service tokens</a>
     <a href="#audit">Audit log</a>
+    <p class="toc-h">Protect</p>
+    <a href="#guard">Guard: stop leaks to Git</a>
     <p class="toc-h">Trust</p>
     <a href="#security">How it stays secret</a>
     <a href="#leaks">If something leaks</a>
@@ -277,6 +279,32 @@ ven audit --limit 200</code></pre>
       <p>Admins see who pulled, pushed, shared, approved, removed or rotated what, when and from which IP. The log never contains values.</p>
     </section>
 
+    <section id="guard">
+      <h2>Guard: stop leaks to Git</h2>
+      <p>The classic leak happens on the way to GitHub: a <code>.env</code> file in a commit, or a real API key pasted into a config file. <code>ven guard</code> catches both before they leave your machine.</p>
+      <pre><code>ven guard install      # once per repository: adds a pre-commit hook</code></pre>
+      <p>From then on, every <code>git commit</code> is checked. If it adds a <code>.env</code> file, or any line containing a secret you keep in VEN, the commit stops with a masked preview:</p>
+      <pre><code>✗ ven guard blocked this commit:
+
+  config.js:12  STRIPE_SECRET_KEY (api/development)
+      stripe: 'sk_l•••••',</code></pre>
+      <p>Check other places any time:</p>
+      <pre><code>ven guard scan                # this folder (.env files count if Git doesn't ignore them)
+ven guard scan --staged       # what the next commit would add
+ven guard scan --history      # every commit, e.g. before making a repo public
+ven guard uninstall           # remove the hook</code></pre>
+      <h3>How it knows your secrets</h3>
+      <p>Guard never asks for your password at commit time. VEN keeps a local list of salted fingerprints of your secret values (never the values) and updates it whenever it decrypts them anyway: <code>pull</code>, <code>push</code>, <code>run</code>, <code>import</code>, <code>set</code>, <code>export</code>. To refresh everything at once, run <code>ven guard index</code>. <code>ven guard status</code> shows what it knows.</p>
+      <ul class="ticks">
+        <li>Only values typed <em>secret</em> and at least 8 characters long are remembered, so ports and public URLs never trigger it, and the fingerprints don't help anyone guess short values.</li>
+        <li>Values are matched as whole words, including inside URLs such as <code>postgres://user:pass@host</code>.</li>
+        <li>Blocked files: <code>.env</code>, <code>.env.local</code>, <code>.env.development.local</code>, <code>.env.production</code>, <code>.env-local</code>, <code>env.local</code>, <code>prod.env</code> and similar. Templates are allowed: <code>.env.example</code>, <code>.env.sample</code>, <code>.env.template</code>, <code>.env.local.example</code>…</li>
+        <li>Other files, such as <code>.envrc</code> or config files, are still checked for any secret value VEN knows.</li>
+        <li>Already using another pre-commit hook (husky, pre-commit)? Add <code>ven guard scan --staged</code> to it instead.</li>
+      </ul>
+      <div class="note warn">A secret that was already pushed is leaked, even if you delete the commit. If <code>--history</code> finds one, change it at its source (Stripe, AWS, …).</div>
+    </section>
+
     <section id="security">
       <h2>How it stays secret</h2>
       <div class="flow">
@@ -354,6 +382,7 @@ ven audit --limit 200</code></pre>
           <tr><td><code>members [remove|renew|role|approve]</code></td><td>Manage access</td></tr>
           <tr><td><code>tokens [create|revoke]</code></td><td>Service tokens for CI</td></tr>
           <tr><td><code>audit</code></td><td>Audit log</td></tr>
+          <tr><td><code>guard install|scan|index|status|uninstall</code></td><td>Block .env files and stored secrets from Git commits</td></tr>
           <tr><td><code>server</code></td><td>Run your own server</td></tr>
         </tbody>
       </table>

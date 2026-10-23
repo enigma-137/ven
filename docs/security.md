@@ -140,6 +140,17 @@ Go strings are immutable and the garbage collector may copy memory, and browsers
 own copies of anything displayed or fetched, so **complete erasure of secrets from memory
 cannot be guaranteed** in either runtime.
 
+## ven guard fingerprints
+
+`ven guard` recognises secret values without the password by keeping `guard.json` (0600, next to
+the vault): HMAC-SHA256 fingerprints, truncated to 128 bits, under a random 32-byte salt stored in
+the same file, plus each value's variable name and project/environment. The values themselves are
+never written. Because the salt sits next to the fingerprints, anyone who can read the file can
+test guesses offline, so only values typed `secret` and at least 8 characters long are indexed;
+random API keys and tokens are not guessable this way, but a short, human-chosen password stored
+as a variable could be. The file also reveals the names of variables in shared projects, which
+the server itself never sees. Delete it to turn guard's value matching off.
+
 ## Recovery key
 
 `ven init` (and the dashboard's setup) shows a one-time recovery key, `VENR-` followed by 160

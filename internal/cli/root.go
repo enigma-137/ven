@@ -218,6 +218,7 @@ end-to-end encrypted. Start with 'ven login --help'.`,
 		c.tokensCommand(),
 		c.auditCommand(),
 		c.serverCommand(),
+		c.guardCommand(),
 	)
 	return root
 }
