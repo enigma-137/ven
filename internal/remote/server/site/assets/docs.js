@@ -48,6 +48,14 @@
     document.querySelectorAll(".doc section[id]").forEach(function (s) { io.observe(s); });
   }
 
+  // Links to a collapsed answer open it.
+  var openTarget = function () {
+    var el = location.hash && document.getElementById(location.hash.slice(1));
+    if (el && el.tagName === "DETAILS") el.open = true;
+  };
+  window.addEventListener("hashchange", openTarget);
+  openTarget();
+
   var menu = document.querySelector(".menu");
   var close = function () { document.documentElement.classList.remove("toc-open"); menu.setAttribute("aria-expanded", "false"); };
   menu.addEventListener("click", function () {
