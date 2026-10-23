@@ -197,6 +197,7 @@ aside { border-right: 1px solid var(--line); padding: 18px 10px; position: relat
 
 .foot { display: flex; justify-content: space-between; align-items: center; padding: 28px 0 40px; border-top: 1px solid var(--line); font-weight: 700; font-size: 15px; }
 .foot .dim { font-weight: 400; }
+.foot a { text-decoration: underline; text-decoration-color: var(--lemon-2); text-decoration-thickness: 2px; text-underline-offset: 3px; }
 
 /* responsive */
 @media (max-width: 1020px) {
