@@ -11,7 +11,6 @@ DIR="${VEN_INSTALL_DIR:-$HOME/.local/bin}"
 fail() { echo "ven install: $*" >&2; exit 1; }
 need() { command -v "$1" >/dev/null 2>&1 || fail "$1 is required"; }
 need curl
-need tar
 
 case "$(uname -s)" in
   Linux) os=linux ;;
@@ -50,7 +49,19 @@ else
 fi
 [ "$expected" = "$actual" ] || fail "checksum mismatch: the download is corrupted or was tampered with"
 
-tar -xzf "$tmp/$name.tar.gz" -C "$tmp"
+# WSL 1 lacks some system calls that newer GNU tar uses ("Cannot open:
+# Function not implemented"), so fall back to Python's tarfile module.
+if ! tar -xzf "$tmp/$name.tar.gz" -C "$tmp" 2>"$tmp/tar.err"; then
+  if command -v python3 >/dev/null 2>&1; then
+    python3 -c 'import sys, tarfile
+kw = {"filter": "data"} if hasattr(tarfile, "data_filter") else {}
+tarfile.open(sys.argv[1]).extractall(sys.argv[2], **kw)' "$tmp/$name.tar.gz" "$tmp" ||
+      fail "could not unpack the archive"
+  else
+    cat "$tmp/tar.err" >&2
+    fail "could not unpack the archive with tar; install python3 (sudo apt install -y python3) and try again"
+  fi
+fi
 mkdir -p "$DIR"
 install -m 0755 "$tmp/$name/ven" "$DIR/ven"
 echo "Installed $DIR/ven ($("$DIR/ven" version 2>/dev/null || echo "$version"))"
