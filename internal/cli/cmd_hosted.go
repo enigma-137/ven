@@ -711,7 +711,8 @@ func writeClipboard(data []byte) error {
 	case "darwin":
 		candidates = [][]string{{"pbcopy"}}
 	default:
-		candidates = [][]string{{"wl-copy"}, {"xclip", "-selection", "clipboard"}, {"xsel", "--clipboard", "--input"}}
+		// clip.exe is the Windows clipboard, reachable from WSL.
+		candidates = [][]string{{"wl-copy"}, {"xclip", "-selection", "clipboard"}, {"xsel", "--clipboard", "--input"}, {"clip.exe"}}
 	}
 	for _, cand := range candidates {
 		if _, err := exec.LookPath(cand[0]); err != nil {

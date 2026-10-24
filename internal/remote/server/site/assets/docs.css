@@ -111,3 +111,6 @@ details[open] summary::after { transform: rotate(45deg); }
   .ref td:first-child { width: auto; }
   .ref code { white-space: normal; }
 }
+
+.pill.who { display: inline-block; margin: 0 6px 0 0; vertical-align: 1px; }
+.doc kbd { font-family: var(--mono); font-size: .8em; background: #fff; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 5px; padding: 0 5px; color: var(--ink); }

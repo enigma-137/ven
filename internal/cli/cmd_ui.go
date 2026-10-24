@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"net"
@@ -90,7 +91,17 @@ func openBrowser(url string) error {
 	case "darwin":
 		cmd = exec.Command("open", url)
 	default:
-		cmd = exec.Command("xdg-open", url)
+		// WSL usually has no xdg-open; wslview and explorer.exe open the
+		// Windows browser.
+		for _, name := range []string{"xdg-open", "wslview", "explorer.exe"} {
+			if _, err := exec.LookPath(name); err == nil {
+				cmd = exec.Command(name, url)
+				break
+			}
+		}
+		if cmd == nil {
+			return errors.New("no browser opener found")
+		}
 	}
 	if err := cmd.Start(); err != nil {
 		return err

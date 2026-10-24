@@ -27,8 +27,10 @@
     <p class="toc-h">Start</p>
     <a href="#intro">What is VEN</a>
     <a href="#install">Install</a>
+    <a href="#windows">Windows (WSL)</a>
     <a href="#quick-local">Quick start: just you</a>
     <a href="#quick-team">Quick start: your team</a>
+    <a href="#keys">Passwords &amp; recovery keys</a>
     <p class="toc-h">Your vault</p>
     <a href="#concepts">Projects &amp; environments</a>
     <a href="#import">Import</a>
@@ -37,6 +39,7 @@
     <a href="#dashboard">Dashboard</a>
     <p class="toc-h">Teams</p>
     <a href="#login">Log in</a>
+    <a href="#invite">Invite a teammate</a>
     <a href="#push-pull">Push &amp; pull</a>
     <a href="#run">Run without a file</a>
     <a href="#share">Share &amp; join</a>
@@ -88,8 +91,81 @@ cd ven
 make build        # bin/ven, dashboard included</code></pre>
         <p><strong>Pin a version:</strong> <code>VEN_VERSION=v0.2.0</code> before the install command. <strong>Change the folder:</strong> <code>VEN_INSTALL_DIR=/usr/local/bin</code>.</p>
       </details>
-      <div class="note warn">Windows builds aren't code-signed yet. If Windows 11's <strong>Smart App Control</strong> is on, it blocks <code>ven.exe</code> ("An Application Control policy has blocked this file"). Leave it on and <a href="#faq-windows">use WSL</a> for now. Older Windows may show SmartScreen instead: "More info" → "Run anyway".</div>
+      <div class="note warn">Windows builds aren't code-signed yet. If Windows 11's <strong>Smart App Control</strong> is on, it blocks <code>ven.exe</code> ("An Application Control policy has blocked this file"). Leave it on and <a href="#windows">use WSL</a> for now. Older Windows may show SmartScreen instead: "More info" → "Run anyway".</div>
       <p class="dim">Code signing: VEN has applied to the <a href="https://signpath.org/">SignPath Foundation</a> for free code signing of its Windows releases. See the <a href="/code-signing/">code signing policy</a>.</p>
+    </section>
+
+    <section id="windows">
+      <h2>Windows (WSL)</h2>
+      <p>Until VEN's Windows builds are code-signed, Windows 11 blocks <code>ven.exe</code> on many PCs. The reliable way to use VEN on Windows today is <strong>WSL</strong> (Windows Subsystem for Linux): a small Ubuntu that runs inside Windows and can see all your Windows files. You set it up once, in about 15 minutes.</p>
+
+      <h3>1. Install Ubuntu</h3>
+      <ol class="steps-list">
+        <li><p>Open <strong>PowerShell as administrator</strong>: open the Start menu, type <em>PowerShell</em>, right-click it and choose <strong>Run as administrator</strong>.</p></li>
+        <li><p>Run the command for your PC. Not sure? Try the first one. If it says <em>"Virtualization is not enabled"</em>, use the second.</p>
+          <div class="tabs-c" data-tabs>
+            <div class="tab-bar" role="tablist">
+              <button role="tab" aria-selected="true" data-tab="wsl2">Most PCs</button>
+              <button role="tab" aria-selected="false" data-tab="wsl1">Virtualization off</button>
+            </div>
+            <div class="tab-panel" data-panel="wsl2"><pre><code>wsl --install</code></pre></div>
+            <div class="tab-panel" data-panel="wsl1" hidden><pre><code>dism.exe /online /enable-feature /featurename:Microsoft-Windows-Subsystem-Linux /all /norestart</code></pre>
+              <p>Restart the PC, open PowerShell as administrator again, then:</p>
+              <pre><code>wsl --set-default-version 1
+wsl --install -d Ubuntu</code></pre>
+              <p class="dim">This is WSL 1. It doesn't need virtualization and VEN works the same on it. (Or turn on Intel VT-x / AMD SVM in your PC's firmware settings and use "Most PCs".)</p></div>
+          </div></li>
+        <li><p><strong>Restart your PC.</strong> Then open <strong>Ubuntu</strong> from the Start menu. The first time, it asks you to pick a Linux username and password. Nothing appears while you type the password; that's normal. You'll need it for <code>sudo</code> commands.</p></li>
+      </ol>
+      <div class="note">"There is no distribution installed"? Run <code>wsl --install -d Ubuntu</code>. "The requested operation requires elevation"? PowerShell isn't running as administrator: close it and open it with right-click → Run as administrator.</div>
+
+      <h3>2. Set up the terminal</h3>
+      <ol class="steps-list">
+        <li><p><strong>Use Windows Terminal</strong> if you can (free in the Microsoft Store; built into Windows 11). Paste there with <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>V</kbd> or a right-click. In the older console window, paste with a right-click.</p></li>
+        <li><p>If pasting adds junk like <code>^[[200~</code>, run this once, then close and reopen Ubuntu:</p><pre><code>echo 'set enable-bracketed-paste off' &gt;&gt; ~/.inputrc</code></pre></li>
+        <li><p>Install the tools the installer uses:</p><pre><code>sudo apt update &amp;&amp; sudo apt install -y curl python3</code></pre></li>
+      </ol>
+
+      <h3>3. Install VEN</h3>
+      <pre><code>curl -fsSL https://ven.traceiq.run/install.sh | sh
+echo 'export PATH="$HOME/.local/bin:$PATH"' &gt;&gt; ~/.bashrc &amp;&amp; source ~/.bashrc
+ven version</code></pre>
+      <p>Update later by running the same <code>curl</code> line again.</p>
+
+      <h3>4. Open your project folder</h3>
+      <p>VEN works on the folder you're in, so always go to your project before running <code>ven link</code>, <code>ven pull</code> or <code>ven push</code>.</p>
+      <ol class="steps-list">
+        <li><p><strong>Easiest:</strong> open the project folder in File Explorer, click the address bar, type <code>wsl</code> and press <kbd>Enter</kbd>. Ubuntu opens already inside that folder.</p></li>
+        <li><p><strong>Or type the path.</strong> Your <code>C:</code> drive is <code>/mnt/c</code>, and backslashes become forward slashes. Put quotes around paths with spaces.</p><pre><code>cd /mnt/c/Users/YOU/Desktop/my-app        # C:\Users\YOU\Desktop\my-app
+cd "/mnt/c/Users/YOU/My Projects/my-app"</code></pre></li>
+        <li><p>Check you're in the right place. <code>pwd</code> prints the folder, <code>ls -a</code> lists its files (including <code>.env</code>).</p><pre><code>pwd
+ls -a</code></pre></li>
+      </ol>
+      <div class="note warn">A new Ubuntu window starts in your Linux home folder (<code>~</code>), not in your project. If you ran <code>ven link</code> there by mistake, undo it with <code>rm ~/.ven.json</code>, then <code>cd</code> to the project and link again.</div>
+
+      <h3>5. Use VEN</h3>
+      <p>Everything in these docs now works the same as on macOS or Linux. A few things are worth knowing:</p>
+      <ul class="ticks">
+        <li><strong><code>.env</code> files land in your Windows folder.</strong> When you <code>ven pull</code> inside <code>/mnt/c/…</code>, VS Code, Node and anything else on Windows see the file as usual.</li>
+        <li><strong><code>ven run</code> only reaches programs started from Ubuntu.</strong> If you start your app from PowerShell, use <code>ven pull</code> to write the <code>.env</code> instead.</li>
+        <li><strong>Links open in your Windows browser.</strong> <code>ven login</code> and <code>ven ui</code> open it for you; if they can't, <kbd>Ctrl</kbd>+click the link they print. The dashboard is at <code>http://127.0.0.1:7420</code>.</li>
+        <li><strong><code>ven copy</code></strong> puts values on the Windows clipboard.</li>
+        <li><strong>Prefer VS Code's terminal?</strong> Install the <em>WSL</em> extension, then run <code>code .</code> in Ubuntu: VS Code opens the folder with an Ubuntu terminal built in.</li>
+      </ul>
+
+      <h3>Quick fixes</h3>
+      <table>
+        <thead><tr><th>You see</th><th>Do this</th></tr></thead>
+        <tbody>
+          <tr><td><code>sh</code> is not recognized</td><td>You're in PowerShell. Run the install command inside Ubuntu.</td></tr>
+          <tr><td><code>curl: command not found</code></td><td><code>sudo apt update &amp;&amp; sudo apt install -y curl</code></td></tr>
+          <tr><td><code>ven: command not found</code></td><td>Run the <code>export PATH=…</code> line from step 3, or open a new Ubuntu window.</td></tr>
+          <tr><td><code>Cannot open: Function not implemented</code></td><td>Old installer on WSL 1. Run the install command again; it now works around it.</td></tr>
+          <tr><td>Paste shows <code>^[[200~</code></td><td>The <code>.inputrc</code> line in step 2.</td></tr>
+          <tr><td><code>ven push</code> says there's no <code>.env</code></td><td>You're in the wrong folder. Check with <code>pwd</code>, then <code>cd</code> to your project.</td></tr>
+          <tr><td>WSL 2 won't start</td><td>Use the "Virtualization off" steps (WSL 1).</td></tr>
+        </tbody>
+      </table>
     </section>
 
     <section id="quick-local">
@@ -118,7 +194,29 @@ ven join ven_inv_…
 ven link billing-api -e development
 ven pull</code></pre></li>
       </ol>
-      <p>Already have a project in your local vault? Upload it in one go with <code>ven remote publish billing-api</code>.</p>
+      <p>Already have a project in your local vault? Upload it in one go with <code>ven remote publish billing-api</code>. The full invite flow, step by step, is in <a href="#invite">Invite a teammate</a>.</p>
+    </section>
+
+    <section id="keys">
+      <h2>Passwords &amp; recovery keys</h2>
+      <p>VEN has two separate locks, because the local vault works without any account. If you use both, you have two passwords and <strong>two recovery keys</strong>. Keep both.</p>
+      <table>
+        <thead><tr><th></th><th>Local vault</th><th>Team account</th></tr></thead>
+        <tbody>
+          <tr><td>Protects</td><td>Projects on this computer (<code>ven import</code>, the dashboard)</td><td>Shared projects (<code>ven push</code>, <code>pull</code>, <code>share</code>)</td></tr>
+          <tr><td>Created by</td><td><code>ven init</code> or the dashboard's first screen</td><td><code>ven login</code>, the first time</td></tr>
+          <tr><td>Password</td><td>Master password</td><td>Account password</td></tr>
+          <tr><td>Recovery key</td><td><code>VENR-…</code></td><td><code>VENA-…</code></td></tr>
+          <tr><td>Forgot the password</td><td><code>ven password reset</code></td><td><code>ven account recover</code></td></tr>
+          <tr><td>Lost the recovery key</td><td><code>ven password recovery-key</code> makes a new one (needs the password)</td><td><code>ven account recovery-key</code> makes a new one (needs the password)</td></tr>
+        </tbody>
+      </table>
+      <ul class="ticks">
+        <li>Save both keys in a password manager, or print them and keep the paper somewhere safe. Label them: the prefix (<code>VENR</code> or <code>VENA</code>) tells you which is which.</li>
+        <li>You can use the same password for both if you like. The recovery keys are always different.</li>
+        <li>Each key is shown once. Nobody, including us, can show it again or reset your password without it.</li>
+        <li>Lost both the account password and its key? <code>ven login --reset-key</code> starts a fresh account key, and an admin shares with you again. The team loses nothing. A local vault with no password and no key can't be opened.</li>
+      </ul>
     </section>
 
     <section id="concepts">
@@ -176,6 +274,54 @@ ven account recover         # forgot the account password: use your recovery key
 ven account recovery-key    # make a new recovery key
 ven logout                  # ends this device's session</code></pre>
       <div class="note">GitHub proves <em>who you are</em>. Your account password protects <em>what you can read</em>. Someone who steals your GitHub login still can't decrypt anything.</div>
+    </section>
+
+    <section id="invite">
+      <h2>Invite a teammate</h2>
+      <p>The whole flow, start to finish. <span class="pill lemon who">You</span> are the project owner (or an admin); <span class="pill who">Teammate</span> is the person joining.</p>
+
+      <h3>Before you invite</h3>
+      <p>Your teammate gets what you last <strong>pushed</strong>, not what's in your local vault or dashboard. In your project folder:</p>
+      <pre><code>ven remote list        # your shared projects
+ven push               # upload your latest .env</code></pre>
+
+      <h3>The steps</h3>
+      <ol class="steps-list">
+        <li><p><span class="pill lemon who">You</span> Create the invite, using their GitHub username:</p>
+          <pre><code>ven share --to their-github-name --env development</code></pre>
+          <p>It prints a code starting with <code>ven_inv_</code>. Options: <code>--role developer</code> lets them push too; <code>--env development,staging</code> gives more environments; <code>--expires 90d</code> or <code>never</code> changes how long the access lasts (default 30 days).</p></li>
+        <li><p><span class="pill lemon who">You</span> Send them the code and this page. A message like this works:</p>
+          <pre><code>I've shared our env vars with you through VEN.
+1. Install: https://ven.traceiq.run/docs/#install
+   (Windows: https://ven.traceiq.run/docs/#windows)
+2. ven login
+3. ven join ven_inv_…
+4. In your copy of the project: ven link OWNER/PROJECT -e development
+5. ven pull</code></pre>
+          <p class="dim">The code is safe to send in chat: it only works for their GitHub account, works once, and expires in 24 hours.</p></li>
+        <li><p><span class="pill who">Teammate</span> <a href="#install">Install VEN</a> (on Windows, <a href="#windows">set up WSL</a> first) and log in with GitHub. The first time, choose an account password and save the <code>VENA-…</code> recovery key.</p>
+          <pre><code>ven login</code></pre></li>
+        <li><p><span class="pill who">Teammate</span> Accept the invite:</p>
+          <pre><code>ven join ven_inv_…</code></pre></li>
+        <li><p><span class="pill who">Teammate</span> Go to their copy of the project, link it and get the <code>.env</code>:</p>
+          <pre><code>cd path/to/the/project
+ven link OWNER/PROJECT -e development
+ven pull                    # writes .env
+ven run -- npm run dev      # or: no file at all</code></pre></li>
+        <li><p><span class="pill lemon who">You</span> <strong>Production only:</strong> approve them. Ask them to run <code>ven whoami</code> and read you the fingerprint on a call, then:</p>
+          <pre><code>ven members approve their-github-name</code></pre>
+          <p>Approve only if the fingerprint VEN shows you matches theirs. See <a href="#approve">Protected environments</a>.</p></li>
+      </ol>
+
+      <h3>After they've joined</h3>
+      <ul class="ticks">
+        <li>When you change a value, <code>ven push</code>. They get it with <code>ven pull</code>.</li>
+        <li><code>ven members</code> shows who has access, to what, and until when.</li>
+        <li>Access ends on its own after 30 days. Extend it with <code>ven members renew their-github-name</code>.</li>
+        <li>When they leave the project, <code>ven members remove their-github-name</code>. Then change any secrets they already pulled at the source (Stripe, AWS, …).</li>
+        <li>Invite not used? <code>ven invites</code> lists open codes; <code>ven invites revoke &lt;id&gt;</code> cancels one.</li>
+      </ul>
+      <div class="note">The dashboard shows your local vault only. Teammates use the terminal for shared projects.</div>
     </section>
 
     <section id="push-pull">
@@ -410,16 +556,7 @@ ven guard uninstall           # remove the hook</code></pre>
       <details><summary>"invite not found"</summary><p>The code expired, was already used, was revoked, or you're logged in as a different GitHub account than the one invited. Check <code>ven whoami</code>, then ask for a new invite.</p></details>
       <details id="faq-windows"><summary>Windows blocks ven.exe</summary>
         <p><strong>"An Application Control policy has blocked this file"</strong> comes from Smart App Control (Windows Security → App &amp; browser control → Smart App Control). It blocks apps that aren't code-signed, and VEN's Windows builds aren't signed yet. Don't turn it off: Windows can't turn it back on without a reinstall. Run VEN in WSL instead; Smart App Control doesn't apply there:</p>
-        <pre><code>wsl --install                                   # PowerShell as admin, once; restart
-curl -fsSL https://ven.traceiq.run/install.sh | sh   # then inside Ubuntu
-echo 'export PATH="$HOME/.local/bin:$PATH"' &gt;&gt; ~/.bashrc &amp;&amp; source ~/.bashrc</code></pre>
-        <p><strong>Getting to your project:</strong> open the folder in File Explorer, click the address bar, type <code>wsl</code> and press Enter. Ubuntu opens already inside that folder. (Windows folders are under <code>/mnt/c/</code>, e.g. <code>cd /mnt/c/Users/you/project</code>.)</p>
-        <p><strong>"Virtualization is not enabled"?</strong> Either turn on Intel VT-x / AMD SVM in your PC's firmware settings, or use WSL 1, which doesn't need it (PowerShell as administrator, restart after the first line):</p>
-        <pre><code>dism.exe /online /enable-feature /featurename:Microsoft-Windows-Subsystem-Linux /all /norestart
-wsl --set-default-version 1
-wsl --install -d Ubuntu</code></pre>
-        <p><strong>Pasting shows <code>^[[200~</code>?</strong> In the classic console, paste with a right-click, and type this once, then reopen Ubuntu: <code>echo 'set enable-bracketed-paste off' &gt;&gt; ~/.inputrc</code>. Windows Terminal (free in the Microsoft Store) pastes normally with Ctrl+Shift+V.</p>
-        <p><strong><code>curl: command not found</code>?</strong> <code>sudo apt update &amp;&amp; sudo apt install -y curl</code></p>
+        <p>Follow <a href="#windows">Windows (WSL)</a> for the full setup, including PCs where virtualization is off.</p>
         <p>On a work PC, the same message can come from a company policy: ask your IT team to allow <code>ven.exe</code>.</p>
         <p><strong>"Windows protected your PC"</strong> is SmartScreen: click "More info" → "Run anyway".</p>
       </details>
