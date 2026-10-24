@@ -1,0 +1,609 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>VEN launch</title>
+<style>
+  :root {
+    --bg: #ffffff; --surface: #f8f9fa; --fg: #18181b; --muted: #606873; --border: #e4e7eb;
+    --accent: #2563eb; --accent-soft: #eff4ff; --success: #15803d; --success-soft: #f0f9f3;
+    --warning: #b45309; --danger: #b91c1c; --danger-soft: #fdf2f2;
+    --sans: Inter, ui-sans-serif, system-ui, sans-serif;
+    --mono: "JetBrains Mono", ui-monospace, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: #fff; }
+  body { font-family: var(--sans); color: var(--fg); -webkit-font-smoothing: antialiased; }
+  #stage { position: relative; width: 1920px; height: 1080px; overflow: hidden; background: #fff; }
+  .abs { position: absolute; }
+  #bg { inset: 0; background:
+      radial-gradient(900px 600px at 15% 10%, rgba(37,99,235,.07), transparent 70%),
+      radial-gradient(800px 600px at 90% 95%, rgba(37,99,235,.06), transparent 70%); }
+  #dots { inset: 0; background-image: radial-gradient(#dfe3e8 1.2px, transparent 1.3px); background-size: 28px 28px;
+      -webkit-mask-image: radial-gradient(1200px 800px at 50% 50%, #000 30%, transparent 90%); }
+  #cam { position: absolute; inset: 0; transform-origin: 0 0; }
+
+  /* logo */
+  .mark { width: 128px; height: 128px; border-radius: 28px; background: var(--accent); display: grid; place-items: center;
+      box-shadow: 0 24px 60px -18px rgba(37,99,235,.55), inset 0 1px 0 rgba(255,255,255,.18); }
+  .mark svg { width: 76%; height: 76%; }
+
+  /* captions */
+  #caption { left: 0; right: 0; top: 34px; text-align: center; }
+  #caption .eyebrow { font: 600 15px/1 var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--accent); }
+  #caption .title { margin-top: 14px; font-size: 42px; font-weight: 650; letter-spacing: -.025em; }
+  #caption .title span { color: var(--muted); font-weight: 500; }
+
+  /* windows */
+  .win { position: absolute; background: #fff; border: 1px solid var(--border); border-radius: 14px; overflow: hidden;
+      box-shadow: 0 40px 100px -30px rgba(24,24,27,.28), 0 12px 30px -12px rgba(24,24,27,.10); }
+  .bar { height: 46px; background: var(--surface); border-bottom: 1px solid var(--border); position: relative; display: flex; align-items: center; }
+  .lights { position: absolute; left: 18px; top: 16px; display: flex; gap: 8px; }
+  .lights i { width: 13px; height: 13px; border-radius: 50%; display: block; }
+  .lights i:nth-child(1) { background: #ff5f57; } .lights i:nth-child(2) { background: #febc2e; } .lights i:nth-child(3) { background: #28c840; }
+  .bar .ttl { margin: 0 auto; font-size: 14px; color: var(--muted); font-weight: 500; }
+  .term-body { padding: 26px 32px; font: 400 21px/1.6 var(--mono); color: var(--fg); white-space: pre; overflow: hidden; height: calc(100% - 46px); }
+  .term-body .p { color: var(--accent); font-weight: 600; }
+  .term-body .d { color: var(--muted); }
+  .term-body .g { color: var(--success); }
+  .term-body .r { color: var(--danger); }
+  .term-body .y { color: var(--warning); }
+  .term-body .b { font-weight: 700; }
+  .term-body .key { background: var(--accent-soft); color: var(--accent); padding: 2px 8px; border-radius: 6px; font-weight: 600; }
+  .term-body .link { color: var(--accent); }
+  .term-body .link.hover { text-decoration: underline; text-underline-offset: 4px; }
+  .caret { display: inline-block; width: 12px; height: 25px; background: var(--fg); vertical-align: -5px; margin-left: 1px; }
+
+  /* browser */
+  #browser .bar { gap: 12px; }
+  .url { position: absolute; left: 50%; top: 9px; transform: translateX(-50%); width: 560px; height: 28px; border-radius: 8px;
+      background: #fff; border: 1px solid var(--border); font-size: 14px; color: var(--fg); display: flex; align-items: center; justify-content: center; gap: 8px; }
+  .url svg { width: 14px; height: 14px; color: var(--muted); }
+  .url .host { color: var(--fg); } .url .path { color: var(--muted); }
+  .navbtns { position: absolute; left: 96px; top: 13px; display: flex; gap: 14px; color: #a1a7b0; }
+  .navbtns svg { width: 18px; height: 18px; }
+  #viewport { position: relative; width: 1560px; height: 868px; overflow: hidden; background: #fff; }
+  #app { width: 1440px; height: 801px; border: 0; transform: scale(1.083333); transform-origin: 0 0; display: block; }
+
+  /* cursor */
+  #cursor { left: 0; top: 0; width: 34px; height: 34px; pointer-events: none; z-index: 50; filter: drop-shadow(0 3px 6px rgba(0,0,0,.25)); }
+  .ripple { position: absolute; width: 56px; height: 56px; margin: -28px 0 0 -28px; border-radius: 50%; border: 3px solid var(--accent);
+      background: rgba(37,99,235,.12); pointer-events: none; z-index: 49; }
+
+  /* intro */
+  #intro { inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  #intro .word { font-size: 132px; font-weight: 750; letter-spacing: -.045em; line-height: 1; margin-top: 42px; }
+  #intro .tag { font-size: 36px; color: var(--muted); margin-top: 22px; letter-spacing: -.01em; }
+  .pill { display: inline-flex; align-items: center; gap: 10px; border: 1px solid var(--border); background: #fff; border-radius: 999px;
+      padding: 9px 18px; font-size: 18px; font-weight: 500; color: var(--fg); box-shadow: 0 6px 18px -10px rgba(24,24,27,.2); }
+  .pill .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--success); box-shadow: 0 0 0 4px var(--success-soft); }
+
+  /* problem */
+  #problem { inset: 0; }
+  .ptitle { position: absolute; left: 0; right: 0; text-align: center; font-size: 64px; font-weight: 700; letter-spacing: -.035em; }
+  .ptitle small { display: block; font-size: 30px; font-weight: 500; color: var(--muted); letter-spacing: -.01em; margin-top: 14px; }
+  .fcard { position: absolute; width: 400px; padding: 18px 20px; background: #fff; border: 1px solid var(--border); border-radius: 12px;
+      box-shadow: 0 18px 40px -20px rgba(24,24,27,.25); }
+  .fcard .fn { display: flex; align-items: center; gap: 10px; font: 600 18px var(--mono); }
+  .fcard .fn svg { width: 20px; height: 20px; color: var(--muted); }
+  .fcard .ln { margin-top: 10px; font: 400 15px/1.6 var(--mono); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .fcard .ln b { color: var(--fg); font-weight: 500; }
+  .fcard.chat { width: 480px; }
+  .fcard.chat .who { display: flex; align-items: center; gap: 10px; font-size: 16px; font-weight: 600; }
+  .fcard.chat .av { width: 30px; height: 30px; border-radius: 8px; background: #fde68a; display: grid; place-items: center; font-size: 15px; }
+  .fcard.chat .msg { margin-top: 8px; font-size: 19px; line-height: 1.45; }
+  .fcard .warn { position: absolute; top: -12px; right: 14px; background: var(--danger-soft); color: var(--danger); border: 1px solid #f5caca;
+      font: 600 13px var(--sans); padding: 4px 10px; border-radius: 999px; }
+  #vault { left: 896px; top: 476px; width: 128px; height: 128px; }
+
+  /* features */
+  #features { inset: 0; }
+  #features h2 { position: absolute; left: 0; right: 0; top: 150px; text-align: center; margin: 0; font-size: 60px; font-weight: 700; letter-spacing: -.035em; }
+  #features h2 span { color: var(--accent); }
+  .card { position: absolute; width: 480px; height: 236px; padding: 34px 34px; background: #fff; border: 1px solid var(--border);
+      border-radius: 16px; box-shadow: 0 20px 50px -28px rgba(24,24,27,.25); }
+  .card .ic { width: 52px; height: 52px; border-radius: 12px; background: var(--accent-soft); color: var(--accent); display: grid; place-items: center; }
+  .card .ic svg { width: 26px; height: 26px; }
+  .card h3 { margin: 22px 0 8px; font-size: 25px; font-weight: 650; letter-spacing: -.015em; }
+  .card p { margin: 0; font-size: 18px; line-height: 1.5; color: var(--muted); }
+  .card .badge { position: absolute; top: 36px; right: 30px; font-size: 13px; font-weight: 600; color: var(--warning); background: #fdf6ec;
+      border: 1px solid #f3dcb7; padding: 4px 10px; border-radius: 999px; }
+
+  /* outro */
+  #outro { inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  #outro .os { font-size: 84px; font-weight: 750; letter-spacing: -.045em; margin-top: 40px; line-height: 1.05; text-align: center; }
+  #outro .os span { color: var(--accent); }
+  #outro .sub { font-size: 30px; color: var(--muted); margin-top: 18px; }
+  #outro .row { display: flex; gap: 18px; margin-top: 48px; align-items: center; }
+  .gh { display: inline-flex; align-items: center; gap: 14px; background: var(--fg); color: #fff; border-radius: 12px; padding: 18px 26px;
+      font-size: 24px; font-weight: 600; box-shadow: 0 18px 40px -18px rgba(24,24,27,.5); }
+  .gh svg { width: 28px; height: 28px; }
+  .star { display: inline-flex; align-items: center; gap: 10px; background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 18px 24px;
+      font-size: 24px; font-weight: 600; box-shadow: 0 14px 34px -20px rgba(24,24,27,.35); }
+  .star svg { width: 24px; height: 24px; color: #e3a008; }
+  .cmd { margin-top: 30px; font: 500 22px var(--mono); background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 18px 26px; }
+  .cmd .p { color: var(--accent); font-weight: 600; margin-right: 12px; }
+  #outro .site { margin-top: 26px; font-size: 22px; color: var(--muted); }
+  #outro .site b { color: var(--fg); font-weight: 600; }
+  #fadeout { inset: 0; background: #fff; pointer-events: none; z-index: 60; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="bg" class="abs"></div>
+  <div id="dots" class="abs"></div>
+
+  <div id="cam">
+    <!-- 1. Intro -->
+    <div id="intro" class="abs">
+      <div class="mark" id="introMark"><svg viewBox="0 0 32 32"><path id="introV" d="M8 10l8 13 8-13" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      <div class="word" id="introWord">VEN</div>
+      <div class="tag" id="introTag">The local, encrypted vault for your environment variables.</div>
+      <div style="margin-top:40px" id="introPill"><span class="pill"><span class="dot"></span>Open source · Apache-2.0 · v0.2.4</span></div>
+    </div>
+
+    <!-- 2. Problem -->
+    <div id="problem" class="abs">
+      <div class="ptitle" id="pt1" style="top:120px">Secrets end up everywhere.<small>Five .env files, three laptops, one Slack DM.</small></div>
+      <div class="ptitle" id="pt2" style="top:120px">One encrypted vault.<small>Every project, every environment, one master password.</small></div>
+      <div id="cards"></div>
+      <div id="vault" class="abs"><div class="mark"><svg viewBox="0 0 32 32"><path d="M8 10l8 13 8-13" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div></div>
+    </div>
+
+    <!-- 3. Terminal -->
+    <div id="term" class="win" style="left:300px; top:190px; width:1320px; height:800px">
+      <div class="bar"><div class="lights"><i></i><i></i><i></i></div><div class="ttl">~/billing-api — zsh</div></div>
+      <div class="term-body" id="termBody"></div>
+    </div>
+
+    <!-- 4. Browser -->
+    <div id="browser" class="win" style="left:180px; top:142px; width:1560px; height:915px">
+      <div class="bar"><div class="lights"><i></i><i></i><i></i></div>
+        <div class="navbtns"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m15 18-6-6 6-6"/></svg><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m9 18 6-6-6-6"/></svg></div>
+        <div class="url"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg><span class="host">127.0.0.1:7420<span class="path" id="urlPath"></span></span></div>
+      </div>
+      <div id="viewport"><iframe id="app"></iframe></div>
+    </div>
+
+    <!-- 5. Guard -->
+    <div id="guard" class="win" style="left:300px; top:230px; width:1320px; height:640px">
+      <div class="bar"><div class="lights"><i></i><i></i><i></i></div><div class="ttl">~/billing-api — zsh</div></div>
+      <div class="term-body" id="guardBody"></div>
+    </div>
+
+    <!-- 6. Features -->
+    <div id="features" class="abs">
+      <h2 id="featTitle">Everything stays <span>on your machine.</span></h2>
+      <div id="featCards"></div>
+    </div>
+
+    <!-- 7. Outro -->
+    <div id="outro" class="abs">
+      <div class="mark" id="outMark"><svg viewBox="0 0 32 32"><path d="M8 10l8 13 8-13" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      <div class="os" id="outTitle">VEN is <span>open source.</span></div>
+      <div class="sub" id="outSub">Free forever. Apache-2.0. Built in the open — contributions welcome.</div>
+      <div class="row" id="outRow">
+        <span class="gh"><svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>github.com/enigma-137/ven</span>
+        <span class="star" id="starBtn"><svg viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>Star on GitHub</span>
+      </div>
+      <div class="cmd" id="outCmd"><span class="p">$</span>curl -fsSL https://ven.traceiq.run/install.sh | sh</div>
+      <div class="site" id="outSite">Docs at <b>ven.traceiq.run</b> · Linux · macOS · Windows</div>
+    </div>
+  </div>
+
+  <div id="caption" class="abs"><div class="eyebrow" id="capEye"></div><div class="title" id="capTitle"></div></div>
+  <div id="ripples"></div>
+  <svg id="cursor" class="abs" viewBox="0 0 32 32"><path d="M6 3 L6 25 L11.5 19.8 L15.2 28.2 L19 26.6 L15.4 18.4 L23 18.4 Z" fill="#111" stroke="#fff" stroke-width="2" stroke-linejoin="round"/></svg>
+  <div id="fadeout" class="abs"></div>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
+const seg = (t, a, b) => clamp((t - a) / (b - a));
+const easeOut = (x) => 1 - Math.pow(1 - x, 3);
+const easeIn = (x) => x * x * x;
+const easeInOut = (x) => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+const spring = (x) => x === 0 ? 0 : x === 1 ? 1 : Math.pow(2, -10 * x) * Math.sin((x * 10 - .75) * (2 * Math.PI / 3)) + 1;
+const lerp = (a, b, k) => a + (b - a) * k;
+const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+// Fade a scene in over [a, a+fi] and out over [b-fo, b].
+function vis(t, a, b, fi = .5, fo = .5) {
+  if (t < a || t > b) return 0;
+  return Math.min(fi ? seg(t, a, a + fi) : 1, fo ? 1 - seg(t, b - fo, b) : 1);
+}
+function show(el, o, transform = '', extra = {}) {
+  el.style.display = o <= 0.001 ? 'none' : '';
+  el.style.opacity = o;
+  el.style.transform = transform;
+  for (const k in extra) el.style[k] = extra[k];
+}
+
+/* ---------- Timeline ---------- */
+const T = {
+  intro: [0, 4.6], problem: [4.4, 9.4], term: [9.2, 24.9], browser: [23.4, 48.0],
+  guard: [47.8, 54.4], features: [54.2, 59.6], outro: [59.4, 67.0], end: 67.0,
+};
+window.__duration = T.end;
+
+const captions = [
+  [9.5, 15.4, '01 · Install', 'One line to install. <span>One password to protect it all.</span>'],
+  [15.6, 20.9, '02 · Import', 'Bring your <code style="font-family:var(--mono);font-size:.86em">.env</code> in. <span>See every change first.</span>'],
+  [21.1, 24.9, '03 · Dashboard', '<code style="font-family:var(--mono);font-size:.86em">ven ui</code> opens a local dashboard.'],
+  [25.1, 31.0, '03 · Dashboard', 'Runs on 127.0.0.1. <span>No account, no cloud.</span>'],
+  [31.2, 36.8, '04 · Variables', 'Reveal, copy, edit. <span>Secrets stay masked until you ask.</span>'],
+  [37.0, 44.6, '05 · Import', 'Paste a .env, preview the diff, <span>resolve conflicts.</span>'],
+  [44.8, 47.8, '06 · Settings', 'Auto-lock, password change, <span>recovery key.</span>'],
+  [48.1, 54.2, '07 · Guard', '<code style="font-family:var(--mono);font-size:.86em">ven guard</code> stops secrets <span>before they reach Git.</span>'],
+];
+
+/* ---------- Terminal engine ---------- */
+const PROMPT = '<span class="p">~/billing-api</span> <span class="g b">❯</span> ';
+const VENR = 'VENR-UMZE-BNUX-AJ3Y-GYCU-WT45-QE7M-UE5V-J3DG';
+const LAUNCH = 'http://127.0.0.1:7420/#launch=569ac73b896ff8a60e7d2b72a84a298f810f77e5aade284b14db0de086ec642f';
+
+const termScript = [
+  { t: 9.9, cmd: 'curl -fsSL https://ven.traceiq.run/install.sh | sh', cps: 42 },
+  { t: 11.5, out: 'Downloading VEN v0.2.4 for linux/amd64...' },
+  { t: 12.2, out: 'Installed /home/you/.local/bin/ven (ven 0.2.4 (linux/amd64, go1.26.0))' },
+  { t: 12.5, out: '' },
+  { t: 12.7, cmd: 'ven init', cps: 22 },
+  { t: 13.2, out: '<span class="d">Creating a vault at /home/you/.local/share/ven/vault.db</span>' },
+  { t: 13.3, out: '' },
+  { t: 13.4, out: 'Master password: ', caretUntil: 14.0 },
+  { t: 14.0, out: 'Confirm master password: ', caretUntil: 14.5 },
+  { t: 14.6, out: '<span class="g">✓</span> Vault created.' },
+  { t: 14.7, out: '' },
+  { t: 14.75, out: 'Your recovery key (shown once):' },
+  { t: 14.85, out: '' },
+  { t: 14.9, out: `<span class="key">${VENR}</span>` },
+  { t: 15.6, clear: true },
+  { t: 15.7, cmd: 'ven projects create "Billing API"', cps: 40 },
+  { t: 16.7, out: '<span class="g">✓</span> Created project Billing API (slug: billing-api)' },
+  { t: 16.75, out: '  Environments: development, staging, production' },
+  { t: 16.8, out: '' },
+  { t: 17.1, cmd: 'ven import .env -p billing-api -e development', cps: 42 },
+  { t: 18.5, out: 'Master password: ', caretUntil: 19.0 },
+  { t: 19.05, out: 'Import preview for billing-api/development (merge mode):' },
+  { t: 19.1, out: '<span class="d">KEY                    STATUS  TYPE    LINE</span>' },
+  ...[['DATABASE_URL', 'secret', 2], ['STRIPE_SECRET_KEY', 'secret', 3], ['STRIPE_WEBHOOK_SECRET', 'secret', 4], ['REDIS_URL', 'secret', 5],
+      ['JWT_SIGNING_KEY', 'secret', 6], ['SENTRY_DSN', 'secret', 7], ['LOG_LEVEL', 'text  ', 8], ['PORT', 'text  ', 9]]
+    .map(([k, ty, l], i) => ({ t: 19.15 + i * .05, out: `${k.padEnd(23)}<span class="g">new</span>     ${ty}  ${l}` })),
+  { t: 19.6, out: '8 new, 0 changed, 0 unchanged, 0 to remove' },
+  { t: 19.7, out: 'Import into billing-api/development? [Y/n] ', type: 'y', typeAt: 20.15, caretUntil: 20.3 },
+  { t: 20.35, out: '<span class="g">✓</span> Imported into billing-api/development: 8 created, 0 updated, 0 kept, 0 unchanged, 0 removed' },
+  { t: 20.9, clear: true },
+  { t: 21.1, cmd: 'ven ui', cps: 18 },
+  { t: 21.75, out: 'VEN dashboard listening on http://127.0.0.1:7420 (loopback only)' },
+  { t: 21.8, out: 'Open this link to start a session (keep it private):' },
+  { t: 21.85, out: '' },
+  { t: 21.9, out: `  <span class="link" id="uilink">${LAUNCH}</span>` },
+  { t: 21.95, out: '' },
+  { t: 22.0, out: '<span class="d">Press Ctrl+C to stop. The vault locks when the server stops.</span>', caretUntil: 99 },
+];
+
+const guardScript = [
+  { t: 48.6, cmd: 'ven guard install', cps: 30 },
+  { t: 49.4, out: '<span class="g">✓</span> Installed the ven guard pre-commit hook' },
+  { t: 49.45, out: 'Each commit now runs `ven guard scan --staged`.' },
+  { t: 49.5, out: '' },
+  { t: 49.8, cmd: 'git add . && git commit -m "add payments"', cps: 34 },
+  { t: 51.3, out: '<span class="r b">✗</span> ven guard blocked this commit:' },
+  { t: 51.35, out: '' },
+  { t: 51.45, out: '  <span class="b">.env</span>  <span class="d">.env file</span>' },
+  { t: 51.6, out: '  <span class="b">pay.js:1</span>  <span class="r">STRIPE_SECRET_KEY</span> <span class="d">(billing-api/production)</span>' },
+  { t: 51.65, out: '      <span class="d">const stripe = new Stripe("</span>sk_l•••••<span class="d">")</span>' },
+  { t: 51.7, out: '' },
+  { t: 51.8, out: '<span class="d">Unstage with `git restore --staged &lt;file&gt;`, add .env files to .gitignore,</span>' },
+  { t: 51.85, out: '<span class="d">and read secrets from the environment instead (ven run -- &lt;command&gt;).</span>', caretUntil: 99 },
+];
+
+function renderTerm(t, script) {
+  let lines = [];
+  let caretLine = -1, caretOn = false;
+  for (const it of script) {
+    if (t < it.t) break;
+    if (it.clear) { lines = []; caretLine = -1; continue; }
+    if (it.cmd !== undefined) {
+      const n = Math.floor((t - it.t) * it.cps);
+      const typed = it.cmd.slice(0, Math.max(0, n));
+      lines.push(PROMPT + esc(typed));
+      caretLine = lines.length - 1;
+      caretOn = n < it.cmd.length + 6; // keep caret a beat after typing ends (Enter)
+      continue;
+    }
+    let s = it.out;
+    if (it.type && t >= it.typeAt) s += it.type;
+    lines.push(s);
+    caretLine = lines.length - 1;
+    caretOn = it.caretUntil ? t < it.caretUntil : false;
+  }
+  if (lines.length === 0 || (caretLine === -1)) { lines.push(PROMPT); caretLine = lines.length - 1; caretOn = true; }
+  // idle prompt after the last finished command
+  const typing = script.some((it) => it.cmd !== undefined && t >= it.t && t < it.t + it.cmd.length / it.cps);
+  const blink = typing || Math.floor(t * 2.2) % 2 === 0;
+  if (caretOn && blink) lines[caretLine] += '<span class="caret"></span>';
+  return lines.join('\n');
+}
+
+/* ---------- Problem cards ---------- */
+const files = [
+  { x: 120, y: 330, r: -6, kind: 'file', name: '.env', ln: '<b>STRIPE_SECRET_KEY</b>=sk_live_51NzQ…' },
+  { x: 1390, y: 300, r: 5, kind: 'file', name: '.env.production', ln: '<b>DATABASE_URL</b>=postgres://billing:Pr0d…' },
+  { x: 230, y: 700, r: 4, kind: 'file', name: '.env.local.bak', ln: '<b>JWT_SIGNING_KEY</b>=a8f3c91e7d2b46…', warn: 'committed?' },
+  { x: 1330, y: 690, r: -4, kind: 'file', name: 'notes.txt', ln: 'prod redis pw → <b>hunter2…</b>' },
+  { x: 760, y: 790, r: -2, kind: 'chat', name: 'Sam', ln: 'hey, can you DM me the prod Stripe key? 🙏' },
+  { x: 760, y: 300, r: 2, kind: 'file', name: '.env.staging', ln: '<b>REDIS_URL</b>=redis://cache-staging…' },
+];
+const fileIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/></svg>';
+$('cards').innerHTML = files.map((f, i) => f.kind === 'chat'
+  ? `<div class="fcard chat" id="fc${i}"><div class="who"><span class="av">S</span>${f.name} <span style="color:var(--muted);font-weight:400;font-size:14px">#eng · 2:14 PM</span></div><div class="msg">${f.ln}</div></div>`
+  : `<div class="fcard" id="fc${i}">${f.warn ? `<span class="warn">${f.warn}</span>` : ''}<div class="fn">${fileIcon}${f.name}</div><div class="ln">${f.ln}</div></div>`).join('');
+
+/* ---------- Feature cards ---------- */
+const I = (p) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
+const feats = [
+  [I('<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>'), 'AES-256-GCM + Argon2id', 'Every value is encrypted under a vault key wrapped by your master password.'],
+  [I('<polyline points="4 17 10 11 4 5"/><line x1="12" x2="20" y1="19" y2="19"/>'), 'CLI and dashboard', 'One Go binary, one vault. Script it from the terminal or click through it.'],
+  [I('<line x1="22" x2="2" y1="12" y2="12"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/><line x1="6" x2="6.01" y1="16" y2="16"/>'), 'Local-first', 'No accounts, no telemetry. The dashboard only listens on 127.0.0.1.'],
+  [I('<path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/>'), 'Guard', 'A pre-commit hook that blocks .env files and your stored secrets.'],
+  [I('<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M12 18v-6"/><path d="m9 15 3 3 3-3"/>'), 'Import and export', 'Preview diffs, resolve conflicts, write .env files atomically with 0600.'],
+  [I('<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>'), 'Teams', 'Optional self-hosted server. End-to-end encrypted sharing.', 'Preview'],
+];
+$('featCards').innerHTML = feats.map(([ic, h, p, badge], i) =>
+  `<div class="card" id="fe${i}" style="left:${208 + (i % 3) * 512}px; top:${330 + Math.floor(i / 3) * 268}px">${badge ? `<span class="badge">${badge}</span>` : ''}<div class="ic">${ic}</div><h3>${h}</h3><p>${p}</p></div>`).join('');
+
+/* ---------- Camera ---------- */
+// [t0, t1, from {z,x,y}, to {z,x,y}] : zoom z about stage point (x, y)
+const camKeys = [
+  { t: 0, z: 1, x: 960, y: 540 },
+  { t: 31.6, z: 1, x: 1180, y: 142 },
+  { t: 32.6, z: 1.32, x: 1180, y: 142 },
+  { t: 35.4, z: 1.32, x: 1180, y: 142 },
+  { t: 36.4, z: 1, x: 960, y: 142 },
+  { t: 41.4, z: 1, x: 960, y: 142 },
+  { t: 42.2, z: 1.2, x: 960, y: 142 },
+  { t: 44.0, z: 1.2, x: 960, y: 142 },
+  { t: 44.7, z: 1, x: 960, y: 142 },
+];
+function camAt(t) {
+  let a = camKeys[0], b = camKeys[0];
+  for (let i = 0; i < camKeys.length; i++) { if (camKeys[i].t <= t) { a = camKeys[i]; b = camKeys[i + 1] || a; } }
+  const k = b === a ? 0 : easeInOut(seg(t, a.t, b.t));
+  return { z: lerp(a.z, b.z, k), x: lerp(a.x, b.x, k), y: lerp(a.y, b.y, k) };
+}
+
+/* ---------- Cursor + real events ---------- */
+// Targets: {stage:'#id'} | {css:'..'} | {label:'..'} | {text:'..', tag?} | {x,y}; ax/ay = point inside the box (0..1)
+const moves = [
+  { t: 22.35, to: { stage: '#uilink', ax: .3 }, dur: .75, from: { x: 1500, y: 980 } },
+  { t: 24.7, to: { css: 'input[type=password]', ax: .2 }, dur: .7 },
+  { t: 26.6, to: { text: 'Unlock', tag: 'button' }, dur: .45 },
+  { t: 27.9, to: { text: 'Auth Service', tag: 'main a' }, dur: .5 },
+  { t: 28.55, to: { text: 'Billing API', tag: 'main a' }, dur: .35 },
+  { t: 29.05, to: { text: 'Web App', tag: 'main a' }, dur: .35 },
+  { t: 29.6, to: { text: 'Create project', tag: 'button' }, dur: .5 },
+  { t: 30.4, to: { text: 'Billing API', tag: 'main a', ax: .4 }, dur: .55 },
+  { t: 31.5, to: { text: 'DATABASE_URL', tag: 'td' }, dur: .6 },
+  { t: 32.2, to: { text: 'STRIPE_SECRET_KEY', tag: 'td' }, dur: .35 },
+  { t: 32.7, to: { label: 'Reveal STRIPE_SECRET_KEY' }, dur: .55 },
+  { t: 34.0, to: { label: 'Copy value of STRIPE_SECRET_KEY' }, dur: .35 },
+  { t: 35.1, to: { label: 'Copy STRIPE_WEBHOOK_SECRET=value line' }, dur: .4 },
+  { t: 35.8, to: { text: 'production', tag: 'button' }, dur: .6 },
+  { t: 36.8, to: { label: 'Reveal DATABASE_URL' }, dur: .45 },
+  { t: 37.7, to: { text: 'Import', tag: 'button' }, dur: .55 },
+  { t: 38.6, to: { text: 'Paste contents', tag: 'button' }, dur: .4 },
+  { t: 39.2, to: { css: '[role=dialog] textarea', ax: .3, ay: .3 }, dur: .35 },
+  { t: 41.0, to: { text: 'Preview import', tag: 'button' }, dur: .45 },
+  { t: 42.3, to: { text: 'Overwrite', tag: 'label' }, dur: .5 },
+  { t: 43.15, to: { text: 'Continue', tag: 'button' }, dur: .4 },
+  { t: 43.85, to: { text: 'Confirm import', tag: 'button' }, dur: .4 },
+  { t: 44.9, to: { text: 'Settings', tag: 'a' }, dur: .55 },
+  { t: 46.0, to: { css: 'main input', ax: .5 }, dur: .5 },
+  { t: 46.8, to: { text: 'Lock vault', tag: 'button' }, dur: .5 },
+];
+const clicks = [
+  { t: 23.25, fake: true },
+  { t: 25.45 }, { t: 27.1 }, { t: 31.0 }, { t: 33.45 }, { t: 34.45 }, { t: 35.55 }, { t: 36.45 }, { t: 37.3 },
+  { t: 38.3 }, { t: 39.05 }, { t: 39.6 }, { t: 41.5 }, { t: 42.85 }, { t: 43.6 }, { t: 44.35 }, { t: 45.5 },
+];
+const PASTE = 'FEATURE_INVOICES_V2=true\nRESEND_API_KEY=re_8hXk2LmQ9pTzW4\nPORT=9090';
+window.__events = [
+  ...clicks.filter((c) => !c.fake).map((c) => ({ t: c.t, kind: 'click' })),
+  { t: 25.6, kind: 'type', text: 'correct-horse-battery', dur: .9 },
+  { t: 39.75, kind: 'type', text: PASTE, dur: 1.1 },
+];
+// Real mouse is driven only while the cursor is over the live dashboard.
+const REAL = [24.7, 47.6];
+const CURSOR_VIS = [22.3, 47.5];
+
+function resolve(spec) {
+  if (spec.x !== undefined) return { x: spec.x, y: spec.y };
+  let el = null, inFrame = !spec.stage;
+  if (spec.stage) el = document.querySelector(spec.stage);
+  else {
+    const doc = $('app').contentDocument;
+    if (!doc) return null;
+    if (spec.css) el = [...doc.querySelectorAll(spec.css)].find(visible) || null;
+    else if (spec.label) el = doc.querySelector(`[aria-label="${spec.label}"]`);
+    else if (spec.text) {
+      const cands = [...doc.querySelectorAll(spec.tag || '*')].filter((e) => e.textContent.trim().startsWith(spec.text) && visible(e));
+      // prefer the innermost match, and elements inside an open dialog when one is open
+      const dlg = doc.querySelector('[role=dialog]');
+      let pool = dlg ? cands.filter((e) => dlg.contains(e)) : cands;
+      if (!pool.length) pool = cands;
+      el = pool.find((e) => e.textContent.trim() === spec.text) || pool[0] || null;
+    }
+  }
+  if (!el) return null;
+  const r = el.getBoundingClientRect();
+  const ax = spec.ax ?? .5, ay = spec.ay ?? .5;
+  if (!inFrame) return { x: r.left + r.width * ax, y: r.top + r.height * ay };
+  const f = $('app').getBoundingClientRect();
+  const k = f.width / 1440;
+  return { x: f.left + (r.left + r.width * ax) * k, y: f.top + (r.top + r.height * ay) * k };
+}
+function visible(e) { const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0; }
+
+let cur = { x: 1500, y: 980 };
+const moveState = moves.map(() => ({ from: null, to: null }));
+function cursorAt(t) {
+  for (let i = moves.length - 1; i >= 0; i--) {
+    const m = moves[i];
+    if (t < m.t) continue;
+    const st = moveState[i];
+    if (!st.from) st.from = m.from || { ...(moveState[i - 1]?.to || cur) };
+    const live = t <= m.t + m.dur + 0.4 ? resolve(m.to) : null;
+    if (live) st.to = live;
+    if (!st.to) st.to = st.from;
+    const k = easeInOut(seg(t, m.t, m.t + m.dur));
+    // slight arc so moves feel hand-made
+    const arc = Math.sin(k * Math.PI) * Math.min(40, Math.hypot(st.to.x - st.from.x, st.to.y - st.from.y) * .08);
+    return { x: lerp(st.from.x, st.to.x, k), y: lerp(st.from.y, st.to.y, k) - arc };
+  }
+  return { ...cur };
+}
+
+/* ---------- Render ---------- */
+window.__render = function (t) {
+  // camera
+  const c = camAt(t);
+  $('cam').style.transform = `translate(${c.x * (1 - c.z)}px, ${c.y * (1 - c.z)}px) scale(${c.z})`;
+  $('dots').style.opacity = 1;
+
+  // intro
+  {
+    const o = vis(t, T.intro[0], T.intro[1], 0, .5);
+    const out = seg(t, T.intro[1] - .5, T.intro[1]);
+    show($('intro'), o, `scale(${1 + out * .06})`, { filter: `blur(${out * 6}px)` });
+    const m = spring(seg(t, .15, 1.15));
+    $('introMark').style.transform = `scale(${m}) rotate(${(1 - m) * -12}deg)`;
+    const v = $('introV'); v.style.strokeDasharray = 40; v.style.strokeDashoffset = 40 * (1 - easeOut(seg(t, .55, 1.3)));
+    const w = easeOut(seg(t, .9, 1.7));
+    $('introWord').style.opacity = w; $('introWord').style.transform = `translateY(${(1 - w) * 24}px)`;
+    const tg = easeOut(seg(t, 1.4, 2.2));
+    $('introTag').style.opacity = tg; $('introTag').style.transform = `translateY(${(1 - tg) * 18}px)`;
+    const p = easeOut(seg(t, 2.1, 2.8));
+    $('introPill').style.opacity = p; $('introPill').style.transform = `translateY(${(1 - p) * 14}px)`;
+  }
+
+  // problem
+  {
+    const [a, b] = T.problem;
+    show($('problem'), vis(t, a, b, .4, .5));
+    const t1 = easeOut(seg(t, a + .2, a + .8)) * (1 - seg(t, 7.0, 7.35));
+    $('pt1').style.opacity = t1; $('pt1').style.transform = `translateY(${(1 - easeOut(seg(t, a + .2, a + .8))) * 20}px)`;
+    const t2 = easeOut(seg(t, 7.5, 8.0));
+    $('pt2').style.opacity = t2; $('pt2').style.transform = `translateY(${(1 - t2) * 20}px)`;
+    const suck = easeIn(seg(t, 6.9, 7.65));
+    files.forEach((f, i) => {
+      const e = $('fc' + i);
+      const app = spring(seg(t, a + .35 + i * .16, a + 1.25 + i * .16));
+      const bob = Math.sin(t * 1.6 + i) * 6;
+      const cx = 960 - 200, cy = 540 - 40;
+      const x = lerp(f.x, cx, suck), y = lerp(f.y + bob, cy, suck);
+      e.style.left = x + 'px'; e.style.top = y + 'px';
+      e.style.opacity = app * (1 - seg(t, 7.35, 7.65));
+      e.style.transform = `rotate(${f.r * (1 - suck)}deg) scale(${app * (1 - suck * .8)})`;
+    });
+    const vIn = spring(seg(t, 6.75, 7.5));
+    const pulse = 1 + Math.sin(seg(t, 7.6, 8.1) * Math.PI) * .12;
+    $('vault').style.opacity = clamp(vIn * 2); $('vault').style.transform = `scale(${vIn * pulse})`;
+  }
+
+  // terminal
+  {
+    const [a, b] = T.term;
+    const o = vis(t, a, b, .5, 0);
+    const back = easeInOut(seg(t, 23.5, 24.7));
+    const inn = easeOut(seg(t, a, a + .7));
+    show($('term'), o * (1 - back), `translateY(${(1 - inn) * 60 - back * 40}px) scale(${(.96 + inn * .04) * (1 - back * .06)})`, { filter: `blur(${back * 4}px)` });
+    if (o > 0) {
+      $('termBody').innerHTML = renderTerm(t, termScript);
+      const link = document.getElementById('uilink');
+      if (link) link.classList.toggle('hover', t > 22.95 && t < 23.6);
+    }
+  }
+
+  // browser
+  {
+    const [a, b] = T.browser;
+    const inn = easeOut(seg(t, 23.5, 24.6));
+    const out = easeInOut(seg(t, b - .7, b));
+    const o = t < a || t > b ? 0 : Math.min(seg(t, 23.5, 23.9), 1 - out);
+    show($('browser'), o, `translateY(${(1 - inn) * 220 + out * -30}px) scale(${(.9 + inn * .1) * (1 - out * .05)})`);
+    try { $('urlPath').textContent = $('app').contentWindow.location.pathname.replace(/^\/$/, ''); } catch (e) {}
+  }
+
+  // guard
+  {
+    const [a, b] = T.guard;
+    const o = vis(t, a, b, .5, .5);
+    const inn = easeOut(seg(t, a, a + .7));
+    const shake = t > 51.3 && t < 51.7 ? Math.sin((t - 51.3) * 70) * 7 * (1 - seg(t, 51.3, 51.7)) : 0;
+    show($('guard'), o, `translateY(${(1 - inn) * 60}px) translateX(${shake}px) scale(${.96 + inn * .04})`);
+    const red = seg(t, 51.3, 51.6);
+    $('guard').style.boxShadow = `0 40px 100px -30px rgba(24,24,27,.28), 0 0 0 ${red * 4}px rgba(185,28,28,${red * .18})`;
+    if (o > 0) $('guardBody').innerHTML = renderTerm(t, guardScript);
+  }
+
+  // features
+  {
+    const [a, b] = T.features;
+    show($('features'), vis(t, a, b, .3, .5));
+    const h = easeOut(seg(t, a + .1, a + .7));
+    $('featTitle').style.opacity = h; $('featTitle').style.transform = `translateY(${(1 - h) * 24}px)`;
+    feats.forEach((_, i) => {
+      const k = easeOut(seg(t, a + .45 + i * .12, a + 1.15 + i * .12));
+      const e = $('fe' + i); e.style.opacity = k; e.style.transform = `translateY(${(1 - k) * 40}px) scale(${.97 + k * .03})`;
+    });
+  }
+
+  // outro
+  {
+    const [a] = T.outro;
+    show($('outro'), vis(t, a, T.end + 1, .3, 0));
+    const steps = [['outMark', .1], ['outTitle', .45], ['outSub', .75], ['outRow', 1.05], ['outCmd', 1.35], ['outSite', 1.6]];
+    for (const [id, d] of steps) {
+      const k = id === 'outMark' ? spring(seg(t, a + d, a + d + 1)) : easeOut(seg(t, a + d, a + d + .7));
+      const e = $(id); e.style.opacity = clamp(k);
+      e.style.transform = id === 'outMark' ? `scale(${k})` : `translateY(${(1 - k) * 22}px)`;
+    }
+    const sp = seg(t, a + 2.6, a + 3.1);
+    $('starBtn').style.transform = `scale(${1 + Math.sin(sp * Math.PI) * .08})`;
+    $('starBtn').querySelector('svg').style.transform = `rotate(${sp * 144}deg)`;
+  }
+
+  // caption
+  {
+    let cap = null;
+    for (const c of captions) if (t >= c[0] && t <= c[1]) cap = c;
+    if (cap) {
+      const k = Math.min(easeOut(seg(t, cap[0], cap[0] + .45)), 1 - seg(t, cap[1] - .3, cap[1]));
+      if ($('capTitle').dataset.k !== cap[3]) { $('capEye').textContent = cap[2]; $('capTitle').innerHTML = cap[3]; $('capTitle').dataset.k = cap[3]; }
+      show($('caption'), k, `translateY(${(1 - k) * -12}px)`);
+    } else show($('caption'), 0);
+  }
+
+  // cursor
+  const p = cursorAt(t);
+  const cv = vis(t, CURSOR_VIS[0], CURSOR_VIS[1], .25, .3);
+  let press = 1;
+  for (const c of clicks) if (t >= c.t - .02 && t < c.t + .16) press = .82;
+  show($('cursor'), cv, `translate(${p.x - 6}px, ${p.y - 3}px) scale(${press})`, { transformOrigin: '6px 3px' });
+  $('ripples').innerHTML = clicks.filter((c) => t >= c.t && t < c.t + .5).map((c) => {
+    const k = seg(t, c.t, c.t + .5);
+    const at = cursorAt(c.t);
+    return `<div class="ripple abs" style="left:${at.x}px;top:${at.y}px;opacity:${(1 - k) * cv};transform:scale(${.3 + easeOut(k) * .9})"></div>`;
+  }).join('');
+
+  // final fade
+  $('fadeout').style.opacity = seg(t, T.end - .6, T.end) * 0;
+  $('fadeout').style.display = 'none';
+
+  return { x: p.x, y: p.y, real: t >= REAL[0] && t <= REAL[1] };
+};
+</script>
+</body>
+</html>
