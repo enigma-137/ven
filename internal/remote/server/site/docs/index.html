@@ -413,7 +413,13 @@ ven guard uninstall           # remove the hook</code></pre>
         <pre><code>wsl --install                                   # PowerShell as admin, once; restart
 curl -fsSL https://ven.traceiq.run/install.sh | sh   # then inside Ubuntu
 echo 'export PATH="$HOME/.local/bin:$PATH"' &gt;&gt; ~/.bashrc &amp;&amp; source ~/.bashrc</code></pre>
-        <p>Your Windows folders are under <code>/mnt/c/</code>, e.g. <code>cd /mnt/c/Users/you/project &amp;&amp; ven pull</code>.</p>
+        <p><strong>Getting to your project:</strong> open the folder in File Explorer, click the address bar, type <code>wsl</code> and press Enter. Ubuntu opens already inside that folder. (Windows folders are under <code>/mnt/c/</code>, e.g. <code>cd /mnt/c/Users/you/project</code>.)</p>
+        <p><strong>"Virtualization is not enabled"?</strong> Either turn on Intel VT-x / AMD SVM in your PC's firmware settings, or use WSL 1, which doesn't need it (PowerShell as administrator, restart after the first line):</p>
+        <pre><code>dism.exe /online /enable-feature /featurename:Microsoft-Windows-Subsystem-Linux /all /norestart
+wsl --set-default-version 1
+wsl --install -d Ubuntu</code></pre>
+        <p><strong>Pasting shows <code>^[[200~</code>?</strong> In the classic console, paste with a right-click, and type this once, then reopen Ubuntu: <code>echo 'set enable-bracketed-paste off' &gt;&gt; ~/.inputrc</code>. Windows Terminal (free in the Microsoft Store) pastes normally with Ctrl+Shift+V.</p>
+        <p><strong><code>curl: command not found</code>?</strong> <code>sudo apt update &amp;&amp; sudo apt install -y curl</code></p>
         <p>On a work PC, the same message can come from a company policy: ask your IT team to allow <code>ven.exe</code>.</p>
         <p><strong>"Windows protected your PC"</strong> is SmartScreen: click "More info" → "Run anyway".</p>
       </details>
