@@ -22,6 +22,13 @@ const DIR = __dirname, ORIGIN = 'http://127.0.0.1:7420';
   await ctx.route(ORIGIN + '/**', async (route) => {
     const req = route.request();
     if (req.url().includes('/__stage.html')) return route.fulfill({ contentType: 'text/html', body: fs.readFileSync(path.join(DIR, 'stage.html')) });
+    if (req.method() === 'GET' && new URL(req.url()).pathname.startsWith('/api/')) {
+      // rendering is much slower than real time: keep "Updated" at "just now" for the whole video
+      const resp = await route.fetch();
+      const now = new Date().toISOString();
+      const body = (await resp.text()).replace(/("(?:created|updated)At"\s*:\s*")[^"]*"/g, `$1${now}"`);
+      return route.fulfill({ response: resp, body });
+    }
     if (req.resourceType() !== 'document') return route.continue();
     // let the dashboard render inside the stage iframe (recording only)
     const resp = await route.fetch();
